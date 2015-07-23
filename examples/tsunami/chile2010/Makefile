@@ -23,7 +23,9 @@ RESTART = False
 # Environment variable FC should be set to fortran compiler, e.g. gfortran
 
 # Compiler flags can be specified here or set as an environment variable
-FFLAGS += -DNETCDF -lnetcdf -I$(NETCDF4_DIR)/include -L$(NETCDF4_DIR)/lib
+FFLAGS += -cpp -DNETCDF -lnetcdf -I$(NETCDF4_DIR)/include
+LFLAGS += -lnetcdff
+
 
 # ---------------------------------
 # List of sources for this program:

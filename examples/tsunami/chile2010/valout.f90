@@ -1,4 +1,4 @@
-! GeoClaw specific output....  add eta to q array before printing
+
 !
 ! Write the results to the file fort.q<iframe>
 ! Use format required by matlab script  plotclaw2.m or Python tools
@@ -38,13 +38,12 @@ subroutine valout (lst, lend, time, num_eqn, num_aux)
     character(len=11) :: fname(5)
 
     integer :: level_pointer, level, num_cells(2), total_cells(2), num_dim
-    real(kind=8) :: lower(2)
+    real(kind=8) :: lower(2), upper(2), delta(2)
 
-    integer :: dimxid, dimyid, gridid, iaux_store, iq_store, ncid, num_eqn_id, time_id
-    real(kind=8), allocatable :: grid(:, :, :)
+    integer :: root_id, x_id, y_id, h_id, hu_id, hv_id, eta_id
     character(len=4) :: gridstr
     character(len=32) :: coord_sys, coord_units
-    character(len=*), parameter :: dim_names = "['num_eqn','dimx','dimy']"
+    character(len=*), parameter :: dim_names = "['x','y']"
 
     ! TODO: actually accept only some q components for output
     logical, dimension(num_eqn) :: output_q_components
@@ -121,7 +120,7 @@ subroutine valout (lst, lend, time, num_eqn, num_aux)
 
 #ifdef NETCDF
         ! Open and set the relevant meta-data for NetCDF 4 files
-        call check_netcdf_error( nf90_create(fname(4), NF90_NETCDF4, ncid) )
+        call check_netcdf_error( nf90_create(fname(4), NF90_NETCDF4, root_id) )
 
         if (coordinate_system==2) then
             coord_sys = 'Latitude-Longitude'
@@ -131,37 +130,30 @@ subroutine valout (lst, lend, time, num_eqn, num_aux)
             coord_units = 'meters'
         endif
 
-        ! Prepare NetCDF4 dataset (for NetCDF3 change NF90_NETCDF4 to NF90_NOCLOBBER)
-        call check_netcdf_error( nf90_create(fname(4), NF90_NETCDF4, ncid) )
-
-        ! Define dimension for number of output variables
-        call check_netcdf_error( nf90_def_dim(ncid, 'num_eqn', num_eqn, num_eqn_id) )
-
-        ! Define time variable
-        call check_netcdf_error( nf90_def_var(ncid, 'time', NF90_FLOAT, time_id) )
-        call check_netcdf_error( nf90_put_att(ncid, time_id, 'units', 'seconds') )
+        ! Assign time to file (note that we could also modify this such that the
+        ! all times are in the same file but we do not suppor that right now)
+!         call check_netcdf_error( nf90_def_var(ncid, 'time', NF90_FLOAT, time_id) )
+        call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'time', time) )
+!         call check_netcdf_error( nf90_put_att(root_id, time_id, 'units', 'seconds') )
+!         call check_netcdf_error( nf90_put_var(root_id,time_id,time) )
 
         ! Assign known global attributes
-        call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'time', time) )
-        call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'num_dim', 2) )
-        call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'amr_levels', mxnest) )
-        call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'num_eqn', num_eqn) )
-!         call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'q_components', output_q_components) )
+        call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'num_dim', 2) )
+        call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'amr_levels', mxnest) )
+        call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'num_eqn', num_eqn) )
+        call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'q_components', output_q_components) )
         if (output_aux) then
-            call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'aux_components', output_aux_components) )
+            call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'aux_components', output_aux_components) )
         else
-            call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'aux_components', 0 * output_aux_components) )
+            call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'aux_components', 0 * output_aux_components) )
         endif
 
-        call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'coord_sys', trim(coord_sys)) )
-        call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'coord_units', trim(coord_units)) )
+        call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'coord_sys', trim(coord_sys)) )
+        call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'coord_units', trim(coord_units)) )
         ! These are the global domain bounds...
-!         call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'coord_xbounds', (/lower(1), upper(1)/)) )
-!         call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'coord_ybounds', (/lower(2), upper(2)/)) )
-        call check_netcdf_error( nf90_enddef(ncid) )
-
-        ! Assign time
-        call check_netcdf_error( nf90_put_var(ncid,time_id,time) )
+!         call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'coord_xbounds', (/lower(1), upper(1)/)) )
+!         call check_netcdf_error( nf90_put_att(root_id, NF90_GLOBAL, 'coord_ybounds', (/lower(2), upper(2)/)) )
+!         call check_netcdf_error( nf90_enddef(root_id) )
 
 #else
         print *, "GeoClaw was not compiled with support for NetCDF IO.  Please"
@@ -245,65 +237,40 @@ subroutine valout (lst, lend, time, num_eqn, num_aux)
             ! NetCDF Output
             else if (output_format == 2) then
 #ifdef NETCDF
-            call check_netcdf_error( NF90_REDEF(ncid) )
 
+            ! Create subgroup for this grid
             write(gridstr,'(I4.4)') grid_pointer
+            call check_netcdf_error( nf90_def_grp(root_id,                     &
+                                                  "grid_" // trim(gridstr),    &
+                                                  grid_id) )
 
-            ! Define dimensions for grid
-            call check_netcdf_error( nf90_def_dim(ncid, 'dimx_' // trim(gridstr), &
-                                                         num_cells(1), dimxid) )
-            call check_netcdf_error( nf90_def_dim(ncid, 'dimy_' // trim(gridstr), &
-                                                         num_cells(2), dimyid) )
+            ! Define attributes
+            call check_netcdf_error( nf90_put_att(grid_id, NF90_GLOBAL, "grid_num", grid_pointer) )
+            call check_netcdf_error( nf90_put_att(grid_id, NF90_GLOBAL, 'level', level) )
+            call check_netcdf_error( nf90_put_att(grid_id, NF90_GLOBAL, 'dim_names', TRIM(dim_names)) )
+            call check_netcdf_error( nf90_put_att(grid_id, NF90_GLOBAL, 'num_cells', num_cells) )
+            call check_netcdf_error( nf90_put_att(grid_id, NF90_GLOBAL, 'lower', lower) )
+            call check_netcdf_error( nf90_put_att(grid_id, NF90_GLOBAL, 'upper', upper) )
+            delta = (/ hxposs(level), hyposs(level) /)
+            call check_netcdf_error( nf90_put_att(grid_id, NF90_GLOBAL, 'delta', delta) )
 
-            ! Define grid variables
-            call check_netcdf_error(nf90_def_var(ncid, 'grid_' // trim(gridstr), NF90_FLOAT, &
-                                                 (/num_eqn_id, dimxid, dimyid/), gridid))
-            ! Assign grid attributes
-            call check_netcdf_error( nf90_put_att(ncid, gridid, 'gridno', grid_pointer) )
-            call check_netcdf_error( nf90_put_att(ncid, gridid, 'level', level) )
-            call check_netcdf_error( nf90_put_att(ncid,gridid,'dim_names', TRIM(dim_names)) )
-            call check_netcdf_error( nf90_put_att(ncid,gridid,'num_eqn' ,num_eqn) )
-            call check_netcdf_error( nf90_put_att(ncid,gridid,'dimx.m', num_cells(1)) )
-            call check_netcdf_error( nf90_put_att(ncid,gridid,'dimy.m', num_cells(2)) )
-            call check_netcdf_error( nf90_put_att(ncid,gridid,'dimx.lower', lower(1)) )
-            call check_netcdf_error( nf90_put_att(ncid, gridid, 'dimy.lower', lower(2)) )
-            call check_netcdf_error( nf90_put_att(ncid, gridid, 'dimx.d', hxposs(level)) )
-            call check_netcdf_error( nf90_put_att(ncid, gridid, 'dimy.d', hyposs(level)) )
+            ! Define variables
+            call check_netcdf_error( nf90_def_var(grid_id, 'h', NF90_DOUBLE, (/ x_id, y_id /), h_id) )
+            call check_netcdf_error( nf90_put_att(grid_id, h_id, 'units', 'meters') )
+            call check_netcdf_error( nf90_put_var(grid_id, h_id, alloc(iadd(1, 1, 1):iadd(1, num_cells(1), num_cell(2))))) )
+
+            call check_netcdf_error( nf90_def_var(grid_id, 'hu', NF90_DOUBLE, (/ x_id, y_id /), hu_id) )
+            call check_netcdf_error( nf90_put_att(grid_id, hu_id, 'units', 'meters^2 / s') )
+            call check_netcdf_error( nf90_put_var(grid_id, hu_id, alloc(iadd(2, 1, 1):iadd(2, num_cells(1), num_cell(2)))) )
             
-            ! Grid is defined, leave define mode
-            call check_netcdf_error(nf90_enddef(ncid))
-
-
-            ! Create and fill grid array
-            allocate(grid(num_eqn, num_cells(1), num_cells(2)))
-            do j = num_ghost + 1, total_cells(2) - num_ghost
-                do i = num_ghost + 1, total_cells(1) - num_ghost
-                    iq_store = 0
-                    do m=1, num_eqn
-                        if (abs(alloc(iadd(m, i, j))) < 1d-90) then
-                            alloc(iadd(m, i, j)) = 0.d0
-                        endif
-!                         if (output_q_components(m) > 0) then
-                            iq_store = iq_store + 1
-                            grid(iq_store, i - num_ghost, j - num_ghost) =  &
-                                        alloc(iadd(m, i, j))
-!                         endif
-                    enddo
-!                     iaux_store = output_q_num
-                    iaux_store = num_eqn
-                    do m = 1, num_aux
-                        if (output_aux .and. output_aux_components(m) > 0) then
-                            iaux_store = iaux_store + 1
-                            grid(iaux_store, i - num_ghost, j - num_ghost) =  &
-                                        alloc(iaddaux(m, i, j))
-                        endif
-                    enddo
-                enddo
-            enddo
-
-            ! Save grid
-            call check_netcdf_error( nf90_put_var(ncid, gridid, grid, (/1,1,1/), (/num_eqn, num_cells(0), num_cells(1)/)) )
-            if (allocated(grid)) deallocate(grid)
+            call check_netcdf_error( nf90_def_var(grid_id, 'hv', NF90_DOUBLE, (/ x_id, y_id /), hv_id) )
+            call check_netcdf_error( nf90_put_att(grid_id, hv_id, 'units', 'meters^2 / s') )
+            call check_netcdf_error( nf90_put_var(grid_id, hu_id, alloc(iadd(3, 1, 1):iadd(3, num_cells(1), num_cell(2)))) )
+            
+            call check_netcdf_error( nf90_def_var(grid_id, 'eta', NF90_DOUBLE, (/ x_id, y_id /), eta_id) )
+            call check_netcdf_error( nf90_put_att(grid_id, eta_id, 'units', 'meters') )
+            call check_netcdf_error( nf90_put_var(grid_id, eta_id, alloc(iadd(1, 1, 1):iadd(1, num_cells(1), num_cell(2)))) + alloc(iaddaux(1, 1, 1):iaddaux(1, num_cells(1), num_cell(2))))) )
+        
 #endif
             ! Fortran direct binary format
             else if (output_format == 3) then
@@ -343,7 +310,6 @@ subroutine valout (lst, lend, time, num_eqn, num_aux)
     ! Assign global attribute num_grids and variable time
 #ifdef NETCDF
     if (output_format == 3) then
-        call check_netcdf_error( nf90_put_var(ncid, time_id, time) )
         call check_netcdf_error( nf90_put_att(ncid, NF90_GLOBAL, 'num_grids', num_grids) )
         call check_netcdf_error( nf90_close(ncid) )
     end if
@@ -518,6 +484,7 @@ contains
 
         if (ios /= NF90_NOERR) then
             print *, "NetCDF IO error: ", ios
+            print *, trim(nf90_strerror(ios))
             stop
         end if
 
