@@ -28,6 +28,8 @@ def setplot(plotdata):
     
     """ 
 
+    plotdata.format = 'netcdf'
+
 
     from clawpack.visclaw import colormaps, geoplot
     from numpy import linspace
