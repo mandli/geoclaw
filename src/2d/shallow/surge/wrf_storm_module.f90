@@ -26,8 +26,8 @@ module wrf_storm_module
     type wrf_storm_type
         ! Size of spatial grids,
         !  corresponds to lengths of lat/lon arrays
-        integer :: num_rows
-        integer :: num_cols
+        integer :: num_lats
+        integer :: num_lons
 
         ! Location of storm field values
         ! longitude and latitude arrays
@@ -55,6 +55,11 @@ module wrf_storm_module
         real(kind=8), allocatable :: v(:,:)
         real(kind=8), allocatable :: p(:,:)
 
+        ! The estimate center of the storm 
+        !  is also stored for interpolation
+        integer :: eye_next(2)
+        integer :: eye_prev(2)
+
         ! Keep track of how many snapshots have been read
         integer :: last_storm_index
 
@@ -74,7 +79,7 @@ module wrf_storm_module
 
 contains
 
-    ! Setup routine for the WRF storm odel
+    ! Setup routine for the WRF storm model
     ! Open data files, get parameters, allocate memory,
     !  and read in first two time snapshots of storm data
     subroutine set_wrf_storm(storm_data_path_root, storm, log_unit)
@@ -91,7 +96,7 @@ contains
 
         ! Local storage
         integer, parameter :: l_file = 701
-        integer :: i, j, k, io_status, num_rows, num_cols
+        integer :: i, j, k, io_status, num_lats, num_lons
         real(kind=8) :: forecast_time,last_time,x(2),y(2),ds,dt,dx,dy
         character(len=100) :: storm_data_path
 
@@ -102,6 +107,9 @@ contains
         if (coordinate_system /= 2) then
             stop "explicit storm type does only works on lat-long coordinates."
         endif
+
+        ! Not properly set in module declaration
+        storm%ambient_pressure = 101.3d3 ! 101300 Pascals
 
         ! We need to count two things:
         !   number of latitude coords (ny)
@@ -130,38 +138,38 @@ contains
         ! by reading the first line and 
         ! counting the decimal points
         read( l_file, '( a )',iostat=io_status) dummy_line
-        num_cols = count( [ ( dummy_line( i:i ), i = 1, len( dummy_line ) ) ] == '.' )
-        storm%num_cols = num_cols
+        num_lons = count( [ ( dummy_line( i:i ), i = 1, len( dummy_line ) ) ] == '.' )
+        storm%num_lons = num_lons
 
         ! Count number of data rows
-        num_rows = 1
+        num_lats = 1
         do
             read (l_file, *, iostat=io_status)
             ! Exit loop if we ran into an error or we reached the end of the file
             if (io_status /= 0) then
                 exit
             else
-                num_rows = num_rows + 1
+                num_lats = num_lats + 1
             endif
         end do
         rewind(l_file) ! closed later
-        storm%num_rows = num_rows
+        storm%num_lats = num_lats
 
         ! save lat & lon coords, times, and u/v/p fields
-        allocate(storm%lat(num_rows))
-        allocate(storm%lon(num_cols))
-        allocate(storm%u_prev(num_cols,num_rows))
-        allocate(storm%v_prev(num_cols,num_rows))
-        allocate(storm%p_prev(num_cols,num_rows))
-        allocate(storm%u_next(num_cols,num_rows))
-        allocate(storm%v_next(num_cols,num_rows))
-        allocate(storm%p_next(num_cols,num_rows))
-        allocate(storm%u(num_cols,num_rows))
-        allocate(storm%v(num_cols,num_rows))
-        allocate(storm%p(num_cols,num_rows))
+        allocate(storm%lat(num_lats))
+        allocate(storm%lon(num_lons))
+        allocate(storm%u_prev(num_lons,num_lats))
+        allocate(storm%v_prev(num_lons,num_lats))
+        allocate(storm%p_prev(num_lons,num_lats))
+        allocate(storm%u_next(num_lons,num_lats))
+        allocate(storm%v_next(num_lons,num_lats))
+        allocate(storm%p_next(num_lons,num_lats))
+        allocate(storm%u(num_lons,num_lats))
+        allocate(storm%v(num_lons,num_lats))
+        allocate(storm%p(num_lons,num_lats))
 
         ! Read in latitude coords
-        do i = 1, num_rows
+        do i = 1, num_lats
             read (l_file, *, iostat=io_status) storm%lat(i)
             if (io_status /= 0) exit
         end do
@@ -184,20 +192,21 @@ contains
         storm%last_storm_index = 0
 
         ! Read in the first storm data snapshot
+        !  and increment storm%last_storm_index to 1
         call read_wrf_storm(storm,t0)
-        ! storm%last_storm_index will be 1
 
         if (t0 < storm%t_next) then
             print *, "Simulation start time preceeds storm data. Using clear skies."
-            print *, t0, storm%t_prev
+            print *, "t0=", t0, "first storm t:",storm%t_next
             storm%t_prev = t0
             storm%u_prev = 0
             storm%v_prev = 0
             storm%p_prev = storm%ambient_pressure
+            storm%eye_prev = storm%eye_next
         else
             ! Read in the second storm data snapshot
+            !  and increment storm%last_storm_index to 2
             call read_wrf_storm(storm,t0)
-            ! storm%last_storm_index will be 2
         endif
 
     end subroutine set_wrf_storm
@@ -279,7 +288,7 @@ contains
     !    Opens storm data file and reads next storm entry
     !    Currently only for ASCII file
     ! ==========================================================================
-    subroutine read_wrf_storm_file(data_path,storm_array,num_rows,last_storm_index,timestamp)
+    subroutine read_wrf_storm_file(data_path,storm_array,num_lats,last_storm_index,timestamp)
 
         implicit none
 
@@ -287,7 +296,7 @@ contains
         real(kind=8), intent(in out) :: storm_array(:,:)
         !real(kind=8), intent(in) :: t
         character(len=*), intent(in) :: data_path
-        integer, intent(in) :: num_rows, last_storm_index
+        integer, intent(in) :: num_lats, last_storm_index
         integer, intent(inout) :: timestamp
 
         ! Local storage
@@ -305,7 +314,7 @@ contains
         ! Advance to the next time step to be read in
         ! Skip entries based on total number previously read
         do k = 1, last_storm_index
-            do j = 1, num_rows
+            do j = 1, num_lats
                 read(datafile, *, iostat=iostatus)
                 ! Exit loop if we ran into an error or we reached the end of the file
                 if (iostatus /= 0) then
@@ -317,7 +326,7 @@ contains
             enddo
         enddo
         ! Read in next time snapshot 
-        do j = 1, num_rows
+        do j = 1, num_lats
             read(datafile, *, iostat=iostatus) timestamp, storm_array(:,j) 
             ! Exit loop if we ran into an error or we reached the end of the file
             if (iostatus /= 0) then
@@ -359,17 +368,18 @@ contains
         storm%u_prev = storm%u_next 
         storm%v_prev = storm%v_next 
         storm%p_prev = storm%p_next 
+        storm%eye_prev = storm%eye_next
         
         ! Current time t currently unused in favor of storm%last_storm_index.
         ! This should probably be changed in the future.
 
         ! Read the u-velocity file
         data_path = trim(storm%data_path_root) // "u10.dat"
-        call read_wrf_storm_file(data_path,storm%u_next,storm%num_rows,storm%last_storm_index,timestamp)
+        call read_wrf_storm_file(data_path,storm%u_next,storm%num_lats,storm%last_storm_index,timestamp)
         ! Error handling: set to clear skies if file ended
         if (timestamp == -1) then
             storm%u_next = 0
-            storm%t_next = storm%t_next + 10*24*60*60
+            storm%t_next = storm%t_next + 365*24*60*60
         else
             ! Save timestamp (sec) of next snapshot
             storm%t_next = timestamp
@@ -377,7 +387,7 @@ contains
 
         ! Read v-velocity file
         data_path = trim(storm%data_path_root) // "v10.dat"
-        call read_wrf_storm_file(data_path,storm%v_next,storm%num_rows,storm%last_storm_index,timestamp)
+        call read_wrf_storm_file(data_path,storm%v_next,storm%num_lats,storm%last_storm_index,timestamp)
         ! Error handling: set to clear skies if file ended
         if (timestamp == -1) then
             storm%v_next = 0
@@ -385,13 +395,17 @@ contains
 
         ! Read pressure file
         data_path = trim(storm%data_path_root) // "pmsl.dat"
-        call read_wrf_storm_file(data_path,storm%p_next,storm%num_rows,storm%last_storm_index,timestamp)
+        call read_wrf_storm_file(data_path,storm%p_next,storm%num_lats,storm%last_storm_index,timestamp)
         ! Error handling: set to clear skies if file ended
         if (timestamp == -1) then
             storm%p_next = storm%ambient_pressure
         else
             ! Convert pressure units: mbar to Pa
             storm%p_next = storm%p_next * 1.0e2
+            ! Estimate storm center location 
+            !  based on lowest pressure
+            ! (only the array index is saved)
+            storm%eye_next = MINLOC(storm%p_next)
         endif
 
         ! Update number of storm snapshots read in
@@ -417,19 +431,19 @@ contains
         real(kind=8) :: dy
 
         ! Out-of-bound conditions:
-        !  no error messages generated to optimize performace
+        !  error messages omitted to optimize performace
         !  (pure function specification)
         if (lat < storm%lat(1)) then
             i = 1
             !print *, "Warning: latitude ", lat, " out of bounds. Using ", &
                 !storm%lat(1), " instead."
-        else if (lat > storm%lat(storm%num_rows)) then
-            i = storm%num_rows
+        else if (lat > storm%lat(storm%num_lats)) then
+            i = storm%num_lats
             !print *, "Warning: latitude ", lat, " out of bounds. Using ", &
-                !storm%lat(storm%num_rows), " instead."
+                !storm%lat(storm%num_lats), " instead."
         else
             ! Find spacing between latitude values
-            dy = (storm%lat(storm%num_rows) - storm%lat(1)) / storm%num_rows
+            dy = (storm%lat(storm%num_lats) - storm%lat(1)) / storm%num_lats
             ! Determine index based on spacing
             i = 1 + (lat - storm%lat(1)) / dy
         endif
@@ -459,18 +473,104 @@ contains
             i = 1
             !print *, "Warning: Longitude ", lon, " out of bounds. Using ", &
                 !storm%lon(1), " instead."
-        else if (lon > storm%lon(storm%num_cols)) then
-            i = storm%num_cols
+        else if (lon > storm%lon(storm%num_lons)) then
+            i = storm%num_lons
             !print *, "Warning: Longitude ", lon, " out of bounds. Using ", &
-                !storm%lon(storm%num_cols), " instead."
+                !storm%lon(storm%num_lons), " instead."
         else
             ! Find spacing between longitude values
-            dx = (storm%lon(storm%num_cols) - storm%lon(1)) / storm%num_cols
+            dx = (storm%lon(storm%num_lons) - storm%lon(1)) / storm%num_lons
             ! Determine index based on spacing
             i = 1 + (lon - storm%lon(1)) / dx
         endif
 
     end function get_lon_index
+
+    ! ==========================================================================
+    !  storm_interpolate()
+    !  Determines intermediate storm values
+    !   for time t between t_prev and t_next
+    !   based on simple weighted average.
+    !  Not used in favor of the improved storm_shift_interp()
+    ! ==========================================================================
+    subroutine storm_interpolate(storm)
+
+        implicit none
+
+        ! Storm description, need in out here since will update the storm
+        ! values at time t
+        type(wrf_storm_type), intent(in out) :: storm
+
+        ! Local storage
+        real(kind=8) :: t_interp
+
+
+        ! This is just a simple weighted average.
+        ! Note that this might not be the best approach:
+        !  intensity is smoothed out between intervals
+        !  so intermediate values may appear less intense
+        ! For a more realistic storm field, use storm_shift_interp()
+        t_interp = (storm%t-storm%t_prev) / (storm%t_next-storm%t_prev)
+        storm%u = storm%u_prev + &
+                (storm%u_next - storm%u_prev) * t_interp
+        storm%v = storm%v_prev + &
+                (storm%v_next - storm%v_prev) * t_interp
+        storm%p = storm%p_prev + &
+                (storm%p_next - storm%p_prev) * t_interp
+
+    end subroutine storm_interpolate
+
+    ! ==========================================================================
+    !  storm_shift_interp()
+    !  Determines intermediate storm values
+    !   for time t between t_prev and t_next
+    !   both in time (linearly) and in space (approximate) 
+    ! ==========================================================================
+    subroutine storm_shift_interp(storm)
+
+        implicit none
+
+        ! Storm description, need in out here since will update the storm
+        ! values at time t
+        type(wrf_storm_type), intent(in out) :: storm
+
+        ! Local storage
+        real(kind=8) :: alpha
+        integer :: i,j
+        integer :: pi,pj,ni,nj
+        integer :: prev_shift(2), next_shift(2)
+
+        ! Determine the linear interpolation parameter (in time)
+        alpha = (storm%t-storm%t_prev) / (storm%t_next-storm%t_prev)
+
+        ! Estimate relative location of storm center at time t
+        ! Note: The spatial grid is constant in time
+        !  so we don't translate to lat-long
+        prev_shift = NINT((storm%eye_next - storm%eye_prev) * alpha)
+        next_shift = NINT((storm%eye_next - storm%eye_prev) * (alpha - 1))
+
+        ! Now shift the two storm fields onto the intermediate
+        !  storm center and use time-weighted average of their values.
+        do j = 1,storm%num_lats
+            ! If index would be out of bounds, use edge value
+            pj = MIN(MAX(j-prev_shift(2),1),storm%num_lats)
+            nj = MIN(MAX(j-next_shift(2),1),storm%num_lats)
+            do i = 1,storm%num_lons
+                ! If index would be out of bounds, use edge value
+                pi = MIN(MAX(i-prev_shift(1),1),storm%num_lons)
+                ni = MIN(MAX(i-next_shift(1),1),storm%num_lons)
+                ! Perform shift & interpolate
+                storm%u(i,j) = storm%u_prev(pi,pj) + &
+                    (storm%u_next(ni,nj)-storm%u_prev(pi,pj)) * alpha
+                storm%v(i,j) = storm%v_prev(pi,pj) + &
+                    (storm%v_next(ni,nj)-storm%v_prev(pi,pj)) * alpha
+                storm%p(i,j) = storm%p_prev(pi,pj) + &
+                    (storm%p_next(ni,nj)-storm%p_prev(pi,pj)) * alpha
+            enddo
+        enddo
+                
+
+    end subroutine storm_shift_interp
 
     ! ==========================================================================
     !  set_wrf_storm_fields()
@@ -516,19 +616,11 @@ contains
         
         ! Interpolate storm data in time
         ! t_prev <= t <= t_next
-        ! Note that this might not be the best approach:
-        !  intensity is smoothed out between intervals
-        !  so intermediate values may appear less intense
         if (t > storm%t) then
             !$OMP CRITICAL (INTERP_STORM)
             if (t > storm%t) then
+                call storm_shift_interp(storm)
                 storm%t = t
-                storm%u = (storm%u_prev*(storm%t_next-t) + storm%u_next*(t-storm%t_prev)) / &
-                        (storm%t_next-storm%t_prev)
-                storm%v = (storm%v_prev*(storm%t_next-t) + storm%v_next*(t-storm%t_prev)) / &
-                        (storm%t_next-storm%t_prev)
-                storm%p = (storm%p_prev*(storm%t_next-t) + storm%p_next*(t-storm%t_prev)) / &
-                        (storm%t_next-storm%t_prev)
             endif
             !$OMP END CRITICAL (INTERP_STORM)
         endif

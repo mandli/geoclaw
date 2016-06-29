@@ -32,7 +32,7 @@ matplotlib.rcParams['xtick.labelsize'] = 16
 matplotlib.rcParams['ytick.labelsize'] = 16
 
 # DPI of output images
-matplotlib.rcParams['savefig.dpi'] = 100
+matplotlib.rcParams['savefig.dpi'] = 200
 
 import matplotlib.pyplot as plt
 import datetime
