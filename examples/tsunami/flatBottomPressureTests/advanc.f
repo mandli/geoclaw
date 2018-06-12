@@ -142,8 +142,8 @@ c
       timeStepgridCPU=timeStepgridCPU+cpu_finish-cpu_startStepgrid
 
 c
-      write(*,600) updateMax(1),updateMax(2),updateMax(3),time,
-     .             possk(level)
+C       write(*,600) updateMax(1),updateMax(2),updateMax(3),time,
+C      .             possk(level)
  600  format(3e10.3,2e12.5)
 
       return
