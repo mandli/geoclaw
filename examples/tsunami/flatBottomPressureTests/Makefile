@@ -28,49 +28,44 @@ FFLAGS ?=
 # ---------------------------------
 # package sources for this program:
 # ---------------------------------
-
-GEOLIB = $(CLAW)/geoclaw/src/2d/shallow
-include $(GEOLIB)/Makefile.geoclaw
+include $(CLAW)/geoclaw/src/2d/shallow/Makefile.geoclaw
 
 # ---------------------------------------
 # package sources specifically to exclude
 # (i.e. if a custom replacement source 
 #  under a different name is provided)
 # ---------------------------------------
-
-EXCLUDE_MODULES = \
-
-EXCLUDE_SOURCES = \
+EXCLUDE_MODULES =
+EXCLUDE_SOURCES =
 
 # ----------------------------------------
 # List of custom sources for this program:
 # ----------------------------------------
 
-MODULES = \
+MODULES =
 
 #  regular riemann solver including pressure in
 #  is in riemann/src/rpn2_geoclaw.f
 #  and then remove src2.f90
+# $(CLAW)/riemann/src/rpn2_geoclaw.f \
+
+
 SOURCES = \
-  $(CLAW)/riemann/src/rpn2_geoclaw.f \
-  $(CLAW)/riemann/src/rpt2_geoclaw.f \
-  $(CLAW)/riemann/src/geoclaw_riemann_utils.f \
-  ./b4step2.f90 \
-  ./stepgrid.f \
-  ./advanc.f \
-  ./setaux.f90 \
+	$(CLAW)/riemann/src/rpt2_geoclaw.f \
+	$(CLAW)/riemann/src/geoclaw_riemann_utils.f \
+	./src2.f90 \
+	./rpn2_geoclaw_woPress.f \
+	./b4step2.f90 \
+	./stepgrid.f \
+	./advanc.f \
+	./setaux.f90
 
 #-------------------------------------------------------------------
 # Include Makefile containing standard definitions and make options:
 include $(CLAWMAKE)
 
 # Construct the topography data
-.PHONY: topo all
-topo:
-	python maketopo.py
+.PHONY: stuff
 
-all: 
-	$(MAKE) topo
-	$(MAKE) .plots
-	$(MAKE) .htmls
-
+stuff:
+	@echo $(SOURCES)

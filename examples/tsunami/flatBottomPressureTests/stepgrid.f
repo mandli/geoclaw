@@ -396,7 +396,7 @@ c
      &              '  on grid ',i3, ' level ',i3)
             endif
 c
-      if (1==1 ) then
+      if (1==0) then
          !! symmetry check
          write(*,*)"Symmetry check time ",time
          tol = 1.d-13
@@ -424,7 +424,7 @@ c            write(*,545) i,j,(q(i,j,ivar),ivar=1,nvar)
          end do
       endif
 c
-      write(*,*)"thisUpdateMax ",thisUpdateMax(1),imax,jmax
+C       write(*,*)"thisUpdateMax ",thisUpdateMax(1),imax,jmax
       return
       end
 

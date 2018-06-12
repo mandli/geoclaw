@@ -102,7 +102,7 @@ def setrun(claw_pkg='geoclaw'):
     # restart_file 'fort.chkNNNNN' specified below should be in 
     # the OUTDIR indicated in Makefile.
 
-    clawdata.restart = True                # True to restart from prior results
+    clawdata.restart = False                # True to restart from prior results
     #clawdata.restart = False               # True to restart from prior results
     #clawdata.restart_file = 'fort.chk03541'  # File to use for restart data
     clawdata.restart_file = 'fort.chk02444'  # File to use for restart data
@@ -115,12 +115,13 @@ def setrun(claw_pkg='geoclaw'):
     # Note that the time integration stops after the final output time.
     # The solution at initial time t0 is always written in addition.
 
-    clawdata.output_style = 3
+    clawdata.output_style = 1
+    factor = clawdata.num_cells[0]/200.0
 
     if clawdata.output_style==1:
         # Output nout frames at equally spaced times up to tfinal:
-        clawdata.num_output_times = 1
-        clawdata.tfinal = 22000.0
+        clawdata.num_output_times = 18
+        clawdata.tfinal = 900.0
         clawdata.output_t0 = True  # output at initial (or restart) time?
 
     elif clawdata.output_style == 2:
@@ -131,9 +132,9 @@ def setrun(claw_pkg='geoclaw'):
     elif clawdata.output_style == 3:
         # Output every iout timesteps with a total of ntot time steps:
         factor = clawdata.num_cells[0]/200.0
-        clawdata.output_step_interval = 0
+        clawdata.output_step_interval = 100
         clawdata.total_steps = int(4889*factor)  + 1
-        clawdata.output_t0 = False
+        clawdata.output_t0 = True
         
 
     clawdata.output_format = 'ascii'      # 'ascii' or 'netcdf' 
@@ -162,7 +163,7 @@ def setrun(claw_pkg='geoclaw'):
     # if dt_variable==1: variable time steps used based on cfl_desired,
     # if dt_variable==0: fixed time steps dt = dt_initial will always be used.
     #clawdata.dt_variable = True
-    clawdata.dt_variable = False
+    clawdata.dt_variable = True
 
     # Initial time step for variable dt.
     # If dt_variable==0 then dt=dt_initial for all steps:

@@ -40,17 +40,6 @@ def setplot(plotdata=None):
     plotdata.clearfigures()  # clear any old figures,axes,items data
 
     plotdata.format = 'ascii'                # Format of output
-    # plotdata.format = 'netcdf'             
-
-    def set_drytol(current_data):
-        # The drytol parameter is used in masking land and water and
-        # affects what color map is used for cells with small water depth h.
-        # The cell will be plotted as dry if h < drytol.
-        # The best value to use often depends on the application and can
-        # be set here (measured in meters):
-        current_data.user['drytol'] = 1.e-2
-
-    plotdata.beforeframe = set_drytol
 
     # To plot gauge locations on pcolor or contour plot, use this as
     # an afteraxis function:
@@ -83,15 +72,15 @@ def setplot(plotdata=None):
     plotitem.amr_patchedges_show = [1]
 
     # Land
-    plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
-    plotitem.plot_var = geoplot.land
-    plotitem.pcolor_cmap = geoplot.land_colors
-    plotitem.pcolor_cmin = 0.0
-    plotitem.pcolor_cmax = 100.0
-    plotitem.add_colorbar = False
-    plotitem.amr_celledges_show = [1,1,0]
-    plotaxes.xlimits = [-100e3,100e3]
-    plotaxes.ylimits = [-100e3,100e3]
+    # plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
+    # plotitem.plot_var = geoplot.land
+    # plotitem.pcolor_cmap = geoplot.land_colors
+    # plotitem.pcolor_cmin = 0.0
+    # plotitem.pcolor_cmax = 100.0
+    # plotitem.add_colorbar = False
+    # plotitem.amr_celledges_show = [1,1,0]
+    # plotaxes.xlimits = [-100e3,100e3]
+    # plotaxes.ylimits = [-100e3,100e3]
 
 
     # Pressure field
@@ -102,154 +91,6 @@ def setplot(plotdata=None):
     plotaxes.scaled = True
     surgeplot.pressure_field = 1
     surgeplot.add_pressure(plotaxes,bounds=[0,100])
-    surgeplot.add_land(plotaxes)
-
-    #-----------------------------------------
-    # Figure for zoom
-    #-----------------------------------------
-    plotfigure = plotdata.new_plotfigure(name='Zoom', figno=10)
-    #plotfigure.show = False
-    plotfigure.kwargs = {'figsize':[12,7]}
-
-    # Set up for axes in this figure:
-    plotaxes = plotfigure.new_plotaxes('diag zoom')
-    plotaxes.axescmd = 'axes([0.0,0.1,0.6,0.6])'
-    plotaxes.title = 'On diagonal'
-    plotaxes.scaled = True
-    plotaxes.xlimits = [55,66]
-    plotaxes.ylimits = [55,66]
-    plotaxes.afteraxes = addgauges
-
-    # Water
-    plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
-    #plotitem.plot_var = geoplot.surface
-    plotitem.plot_var = geoplot.surface_or_depth
-    plotitem.pcolor_cmap = geoplot.tsunami_colormap
-    plotitem.pcolor_cmin = -0.9
-    plotitem.pcolor_cmax = 0.9
-    plotitem.add_colorbar = True
-    plotitem.amr_celledges_show = [1,1,0]
-    plotitem.amr_patchedges_show = [1]
-
-    # Land
-    plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
-    plotitem.plot_var = geoplot.land
-    plotitem.pcolor_cmap = geoplot.land_colors
-    plotitem.pcolor_cmin = 0.0
-    plotitem.pcolor_cmax = 100.0
-    plotitem.add_colorbar = False
-    plotitem.amr_celledges_show = [1,1,0]
-
-    # Add contour lines of bathymetry:
-    plotitem = plotaxes.new_plotitem(plot_type='2d_contour')
-    plotitem.plot_var = geoplot.topo
-    from numpy import arange, linspace
-    plotitem.contour_levels = arange(-10., 0., 1.)
-    plotitem.amr_contour_colors = ['k']  # color on each level
-    plotitem.kwargs = {'linestyles':'solid'}
-    plotitem.amr_contour_show = [0,0,1]  # show contours only on finest level
-    plotitem.celledges_show = 0
-    plotitem.patchedges_show = 0
-    plotitem.show = True
-
-    # Add contour lines of topography:
-    plotitem = plotaxes.new_plotitem(plot_type='2d_contour')
-    plotitem.plot_var = geoplot.topo
-    from numpy import arange, linspace
-    plotitem.contour_levels = arange(0., 11., 1.)
-    plotitem.amr_contour_colors = ['g']  # color on each level
-    plotitem.kwargs = {'linestyles':'solid'}
-    plotitem.amr_contour_show = [0,0,1]  # show contours only on finest level
-    plotitem.celledges_show = 0
-    plotitem.patchedges_show = 0
-    plotitem.show = True
-
-    # Add dashed contour line for shoreline
-    plotitem = plotaxes.new_plotitem(plot_type='2d_contour')
-    plotitem.plot_var = geoplot.topo
-    plotitem.contour_levels = [0.]
-    plotitem.amr_contour_colors = ['k']  # color on each level
-    plotitem.kwargs = {'linestyles':'dashed'}
-    plotitem.amr_contour_show = [0,0,1]  # show contours only on finest level
-    plotitem.celledges_show = 0
-    plotitem.patchedges_show = 0
-    plotitem.show = True
-
-
-
-    #-----------------------------------------
-    # Figure for zoom near axis
-    #-----------------------------------------
-    #plotfigure = plotdata.new_plotfigure(name='Zoom2', figno=11)
-    # now included in same figure as zoom on diagonal
-
-    # Set up for axes in this figure:
-    plotaxes = plotfigure.new_plotaxes('x zoom')
-    plotaxes.show = True
-    plotaxes.axescmd = 'axes([0.5,0.1,0.6,0.6])'
-    plotaxes.title = 'On x-axis'
-    plotaxes.scaled = True
-    plotaxes.xlimits = [82,93]
-    plotaxes.ylimits = [-5,6]
-    plotaxes.afteraxes = addgauges
-
-    # Water
-    plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
-    #plotitem.plot_var = geoplot.surface
-    plotitem.plot_var = geoplot.surface_or_depth
-    plotitem.pcolor_cmap = geoplot.tsunami_colormap
-    plotitem.pcolor_cmin = -0.9
-    plotitem.pcolor_cmax = 0.9
-    plotitem.add_colorbar = True
-    plotitem.amr_celledges_show = [1,1,0]
-    plotitem.amr_patchedges_show = [1]
-
-    # Land
-    plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
-    plotitem.plot_var = geoplot.land
-    plotitem.pcolor_cmap = geoplot.land_colors
-    plotitem.pcolor_cmin = 0.0
-    plotitem.pcolor_cmax = 100.0
-    plotitem.add_colorbar = False
-    plotitem.amr_celledges_show = [1,1,0]
-
-
-    # Add contour lines of bathymetry:
-    plotitem = plotaxes.new_plotitem(plot_type='2d_contour')
-    plotitem.plot_var = geoplot.topo
-    from numpy import arange, linspace
-    plotitem.contour_levels = arange(-10., 0., 1.)
-    plotitem.amr_contour_colors = ['k']  # color on each level
-    plotitem.kwargs = {'linestyles':'solid'}
-    plotitem.amr_contour_show = [0,0,1]  # show contours only on finest level
-    plotitem.celledges_show = 0
-    plotitem.patchedges_show = 0
-    plotitem.show = True
-
-    # Add contour lines of topography:
-    plotitem = plotaxes.new_plotitem(plot_type='2d_contour')
-    plotitem.plot_var = geoplot.topo
-    from numpy import arange, linspace
-    plotitem.contour_levels = arange(0., 11., 1.)
-    plotitem.amr_contour_colors = ['g']  # color on each level
-    plotitem.kwargs = {'linestyles':'solid'}
-    plotitem.amr_contour_show = [0,0,1]  # show contours only on finest level
-    plotitem.celledges_show = 0
-    plotitem.patchedges_show = 0
-    plotitem.show = True
-
-    # Add dashed contour line for shoreline
-    plotitem = plotaxes.new_plotitem(plot_type='2d_contour')
-    plotitem.plot_var = geoplot.topo
-    plotitem.contour_levels = [0.]
-    plotitem.amr_contour_colors = ['k']  # color on each level
-    plotitem.kwargs = {'linestyles':'dashed'}
-    plotitem.amr_contour_show = [0,0,1]  # show contours only on finest level
-    plotitem.celledges_show = 0
-    plotitem.patchedges_show = 0
-    plotitem.show = True
-
-
 
     #-----------------------------------------
     # Figures for gauges
@@ -289,26 +130,6 @@ def setplot(plotdata=None):
         plot(t, 0*t, 'k')
 
     plotaxes.afteraxes = add_zeroline
-
-
-    #-----------------------------------------
-    # Figure for patches alone
-    #-----------------------------------------
-    plotfigure = plotdata.new_plotfigure(name='patches', figno=2)
-    plotfigure.show = False
-
-    # Set up for axes in this figure:
-    plotaxes = plotfigure.new_plotaxes()
-    plotaxes.xlimits = [0,1]
-    plotaxes.ylimits = [0,1]
-    plotaxes.title = 'patches'
-    plotaxes.scaled = True
-
-    # Set up for item on these axes:
-    plotitem = plotaxes.new_plotitem(plot_type='2d_patch')
-    plotitem.amr_patch_bgcolor = ['#ffeeee', '#eeeeff', '#eeffee']
-    plotitem.amr_celledges_show = [1,1,0]   
-    plotitem.amr_patchedges_show = [1]     
 
     #-----------------------------------------
     # Scatter plot of surface for radially symmetric
