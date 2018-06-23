@@ -47,6 +47,7 @@ c      dimension work(mwork)
 
       logical :: debug = .false.
       logical :: dump = .false.
+      logical :: df1,df2,df3
 c
       tcfmax = -rinfinity
       level = node(nestlevel,mptr)
@@ -396,18 +397,27 @@ c
      &              '  on grid ',i3, ' level ',i3)
             endif
 c
-      if (1==0) then
+      if (1==1 ) then
          !! symmetry check
          write(*,*)"Symmetry check time ",time
          tol = 1.d-13
-         do i = mbc+1, mitot-mbc
-         do j = mbc+1, mjtot-mbc
-            diff =  abs(q(1,i,j) - q(1,j,i)) 
-            diff2 =  abs(q(1,mitot-i+1,j) - q(1,i,j)) 
-            diff3 =  abs(q(1,i,j) - q(1,i,mjtot-j+1)) 
-            if (diff.gt.tol .or. diff2.gt.tol .or. dif3.gt.tol) then
-             write(*,546) i,j,diff,diff2,diff3
+         do ii = mbc+1, mitot-mbc
+         do jj = mbc+1, mjtot-mbc
+            diff =  dabs(q(2,ii,jj)) - dabs(q(3,jj,ii)) 
+            diff2 =  dabs(q(2,mitot-ii+1,jj))-dabs(q(2,ii,jj)) 
+            diff3 =  dabs(q(2,ii,jj)) - dabs(q(2,ii,mjtot-jj+1)) 
+            df1 = (diff .gt. tol)
+            df2 = (diff2 .gt. tol)
+            df3 = (diff3 .gt. tol)
+            !!if (diff.gt.tol .or. diff2.gt.tol .or. dif3.gt.tol) then
+            if (df1 .or. df2 .or. df3) then
+             write(*,546) ii,jj,diff,diff2,diff3
+             write(*,547) (q(ivar,ii,jj),ivar=1,3)
+             write(*,547) (q(ivar,jj,ii),ivar=1,3)
+             write(*,547) (q(ivar,mitot+1-ii,jj),ivar=1,3)
+             write(*,547) (q(ivar,ii,mjtot+1-jj),ivar=1,3)
  546        format("dif ",2i4,3e15.7)
+ 547        format(10x,3e15.7)
             endif
          end do
          end do
@@ -424,7 +434,7 @@ c            write(*,545) i,j,(q(i,j,ivar),ivar=1,nvar)
          end do
       endif
 c
-C       write(*,*)"thisUpdateMax ",thisUpdateMax(1),imax,jmax
+      write(*,*)"thisUpdateMax ",thisUpdateMax(1),imax,jmax
       return
       end
 

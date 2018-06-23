@@ -52,45 +52,28 @@ def setplot(plotdata=None):
 
     #-----------------------------------------
     # Figure for pcolor plot
-    #-----------------------------------------
-    plotfigure = plotdata.new_plotfigure(name='pcolor', figno=0)
-
-    # Set up for axes in this figure:
-    plotaxes = plotfigure.new_plotaxes('pcolor')
-    plotaxes.title = 'Surface'
+    #----------------------------------------- 
+    plotfigure = plotdata.new_plotfigure(name="Surface")
+    plotaxes = plotfigure.new_plotaxes()
+    plotaxes.title = "Surface"
     plotaxes.scaled = True
+    surgeplot.add_surface_elevation(plotaxes, bounds=[-0.9, 0.9])
 
-    # Water
-    plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
-    #plotitem.plot_var = geoplot.surface
-    plotitem.plot_var = geoplot.surface_or_depth
-    plotitem.pcolor_cmap = geoplot.tsunami_colormap
-    plotitem.pcolor_cmin = -0.9
-    plotitem.pcolor_cmax = 0.9
-    plotitem.add_colorbar = True
-    plotitem.amr_celledges_show = [0,0,0]
-    plotitem.amr_patchedges_show = [1]
-
-    # Land
-    # plotitem = plotaxes.new_plotitem(plot_type='2d_pcolor')
-    # plotitem.plot_var = geoplot.land
-    # plotitem.pcolor_cmap = geoplot.land_colors
-    # plotitem.pcolor_cmin = 0.0
-    # plotitem.pcolor_cmax = 100.0
-    # plotitem.add_colorbar = False
-    # plotitem.amr_celledges_show = [1,1,0]
-    # plotaxes.xlimits = [-100e3,100e3]
-    # plotaxes.ylimits = [-100e3,100e3]
-
+    # Speed
+    plotfigure = plotdata.new_plotfigure(name="Currents")
+    plotaxes = plotfigure.new_plotaxes()
+    plotaxes.title = "Currents"
+    plotaxes.scaled = True
+    surgeplot.add_speed(plotaxes, bounds=[0.0, 1e-1])
 
     # Pressure field
-    plotfigure = plotdata.new_plotfigure(name='Pressure')
-
+    plotfigure = plotdata.new_plotfigure(name='Pressure', figno=2)
+    plotfigure.show = False
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = "Pressure Field"
     plotaxes.scaled = True
     surgeplot.pressure_field = 1
-    surgeplot.add_pressure(plotaxes,bounds=[0,100])
+    surgeplot.add_pressure(plotaxes, bounds=[0,100])
 
     #-----------------------------------------
     # Figures for gauges

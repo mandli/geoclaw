@@ -71,8 +71,8 @@ def setrun(claw_pkg='geoclaw'):
 
 
     # Number of grid cells: Coarsest grid
-    clawdata.num_cells[0] = 100
-    clawdata.num_cells[1] = 100
+    clawdata.num_cells[0] = 50
+    clawdata.num_cells[1] = 50
 
 
     # ---------------
@@ -121,7 +121,8 @@ def setrun(claw_pkg='geoclaw'):
     if clawdata.output_style==1:
         # Output nout frames at equally spaced times up to tfinal:
         clawdata.num_output_times = 18
-        clawdata.tfinal = 900.0
+        # clawdata.tfinal = 900.0
+        clawdata.tfinal = 1800.0
         clawdata.output_t0 = True  # output at initial (or restart) time?
 
     elif clawdata.output_style == 2:
@@ -132,8 +133,8 @@ def setrun(claw_pkg='geoclaw'):
     elif clawdata.output_style == 3:
         # Output every iout timesteps with a total of ntot time steps:
         factor = clawdata.num_cells[0]/200.0
-        clawdata.output_step_interval = 100
-        clawdata.total_steps = int(4889*factor)  + 1
+        clawdata.output_step_interval = 1
+        clawdata.total_steps = 2
         clawdata.output_t0 = True
         
 
@@ -168,7 +169,7 @@ def setrun(claw_pkg='geoclaw'):
     # Initial time step for variable dt.
     # If dt_variable==0 then dt=dt_initial for all steps:
     #clawdata.dt_initial = 0.016
-    clawdata.dt_initial = 4.5/factor
+    clawdata.dt_initial = 45.0
 
     # Max time step to be allowed if variable dt used:
     clawdata.dt_max = 1e+99

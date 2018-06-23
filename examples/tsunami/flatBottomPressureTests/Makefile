@@ -47,14 +47,14 @@ MODULES =
 #  regular riemann solver including pressure in
 #  is in riemann/src/rpn2_geoclaw.f
 #  and then remove src2.f90
-# $(CLAW)/riemann/src/rpn2_geoclaw.f \
-
+# ./rpn2_geoclaw_woPress.f \
+	# ./src2.f90 \
+# 
 
 SOURCES = \
 	$(CLAW)/riemann/src/rpt2_geoclaw.f \
 	$(CLAW)/riemann/src/geoclaw_riemann_utils.f \
-	./src2.f90 \
-	./rpn2_geoclaw_woPress.f \
+	$(CLAW)/riemann/src/rpn2_geoclaw.f \	
 	./b4step2.f90 \
 	./stepgrid.f \
 	./advanc.f \
