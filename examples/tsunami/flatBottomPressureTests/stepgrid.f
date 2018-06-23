@@ -437,5 +437,3 @@ c
       write(*,*)"thisUpdateMax ",thisUpdateMax(1),imax,jmax
       return
       end
-
-

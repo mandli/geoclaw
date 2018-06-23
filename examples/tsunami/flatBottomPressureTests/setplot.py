@@ -113,34 +113,6 @@ def setplot(plotdata=None):
         plot(t, 0*t, 'k')
 
     plotaxes.afteraxes = add_zeroline
-
-    #-----------------------------------------
-    # Scatter plot of surface for radially symmetric
-    #-----------------------------------------
-    plotfigure = plotdata.new_plotfigure(name='Scatter', figno=200)
-    plotfigure.show = False
-    # Note: will not look very good unless more of domain is refined
-
-    # Set up for axes in this figure:
-    plotaxes = plotfigure.new_plotaxes()
-    plotaxes.xlimits = [0., 100.]
-    plotaxes.ylimits = [-1.5, 2.]
-    plotaxes.title = 'Scatter plot of surface'
-
-    # Set up for item on these axes:
-    plotitem = plotaxes.new_plotitem(plot_type='1d_from_2d_data')
-    plotitem.plot_var = geoplot.surface
-    def q_vs_radius(current_data):
-        from numpy import sqrt
-        x = current_data.x
-        y = current_data.y
-        r = sqrt(x**2 + y**2)
-        q = current_data.var
-        return r,q
-    plotitem.map_2d_to_1d = q_vs_radius
-    plotitem.plotstyle = 'o'
-    plotitem.amr_color=['b','r','g']
-    plotaxes.afteraxes = "import pylab; pylab.legend(['Level 1','Level 2'])"
     
 
     #-----------------------------------------
