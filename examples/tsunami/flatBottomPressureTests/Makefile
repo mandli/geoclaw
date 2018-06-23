@@ -54,25 +54,20 @@ MODULES =
 # 
 
 SOURCES = \
-  $(CLAW)/riemann/src/rpn2_geoclaw.f \
-  $(CLAW)/riemann/src/rpt2_geoclaw.f \
-  $(CLAW)/riemann/src/geoclaw_riemann_utils.f \
-  ./b4step2.f90 \
-  ./stepgrid.f \
-  ./advanc.f \
-  ./setaux.f90 \
+	$(CLAW)/riemann/src/rpt2_geoclaw.f \
+	$(CLAW)/riemann/src/geoclaw_riemann_utils.f \
+	./src2.f90 \
+	./rpn2_geoclaw_woPress.f \
+	./b4step2.f90 \
+	./stepgrid.f \
+	./advanc.f \
+	./setaux.f90
 
 #-------------------------------------------------------------------
 # Include Makefile containing standard definitions and make options:
 include $(CLAWMAKE)
 
 # Construct the topography data
-<<<<<<< HEAD
-.PHONY: stuff
-
-stuff:
-	@echo $(SOURCES)
-=======
 .PHONY: topo all
 topo:
 	python maketopo.py
@@ -81,5 +76,3 @@ all:
 	$(MAKE) topo
 	$(MAKE) .plots
 	$(MAKE) .htmls
-
->>>>>>> d4d9eb30ac4fca1adcf1c9317c418b1793212b91
