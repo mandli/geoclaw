@@ -68,12 +68,12 @@ def setplot(plotdata=None):
 
     # Pressure field
     plotfigure = plotdata.new_plotfigure(name='Pressure', figno=2)
-    plotfigure.show = False
+    plotfigure.show = True
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = "Pressure Field"
     plotaxes.scaled = True
     surgeplot.pressure_field = 1
-    surgeplot.add_pressure(plotaxes, bounds=[0,100])
+    surgeplot.add_pressure(plotaxes)#, bounds=[0,100])
 
     #-----------------------------------------
     # Figures for gauges
