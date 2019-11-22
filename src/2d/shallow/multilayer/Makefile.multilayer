@@ -25,7 +25,6 @@ else ifeq ($(UNAME), Linux)
       LFLAGS += -llapack $(FFLAGS)
     endif
   endif
-  $(info LFLAGS="$(LFLAGS)")
 endif
 
 #get the directory of this makefile

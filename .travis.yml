@@ -24,16 +24,16 @@ before_install:
   - rm -rf geoclaw
   - ln -s ../ geoclaw
   
-install:
+install: skip
+
+before_script:
   - conda activate test-env
   - export PYTHONPATH=${PWD}:$PYTHONPATH
   - export CLAW=${PWD}
   - export FC=gfortran
+# below paths are needed for netcdf test and multilayer
   - export NETCDF4_DIR=$HOME/miniconda/envs/test-env
   - export LIB_PATHS=$HOME/miniconda/envs/test-env/lib
-
-before_script:
-  # Print CPU info for debugging purposes:
   - cat /proc/cpuinfo
   - python -c "import numpy; print(numpy.__version__)"
   - gfortran -v
@@ -43,11 +43,9 @@ before_script:
   - echo "NETCDF4_DIR="$NETCDF4_DIR
   - echo "LIB_PATHS="$LIB_PATHS
   - which $FC 
+  - cd $CLAW/geoclaw
   
 script:
-  - cd $CLAW/geoclaw
-  - conda activate test-env
-  - export FC=gfortran
   - nosetests -sv
 
 after_failure:
