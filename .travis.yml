@@ -31,7 +31,6 @@ install:
   - export CLAW=${PWD}
   - export FC=gfortran
   - export NETCDF4_DIR="$HOME/miniconda"
-  - pip install -e .
   
 before_script:
   # Print CPU info for debugging purposes:
