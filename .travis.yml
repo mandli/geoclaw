@@ -23,8 +23,6 @@ before_install:
   - git submodule update -j 6
   - rm -rf geoclaw
   - ln -s ../ geoclaw
-  # Print NumPy version being used
-  - python -c "import numpy; print(numpy.__version__)"
   
 install:
   - conda activate test-env
@@ -35,6 +33,7 @@ install:
 before_script:
   # Print CPU info for debugging purposes:
   - cat /proc/cpuinfo
+  - python -c "import numpy; print(numpy.__version__)"
   - gfortran -v
   - echo "PYTHONPATH="$PYTHONPATH
   - echo "CLAW="$CLAW
