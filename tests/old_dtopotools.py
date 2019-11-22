@@ -20,7 +20,7 @@ import re
 import string
 
 import numpy
-from matplotlib.pyplot import plt
+import matplotlib.pyplot as plt
 
 # Poisson ratio for Okada 
 from clawpack.geoclaw.util import DEG2RAD, LAT2METER
@@ -496,8 +496,8 @@ def make_dtopo_from_subfaults(subfaults, dtopo_params):
         t_prev = -1.e99
         for t in times:
             if plot_rupture:
-                figure(5)
-                clf()
+                plt.figure(5)
+                plt.clf()
             for k,subfault in enumerate(subfaults):
                 t0 = subfault.get('rupture_time',0)
                 t1 = subfault.get('rise_time',0.5)
