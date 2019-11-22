@@ -16,7 +16,7 @@ before_install:
   - conda config --add channels conda-forge
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION nose lapack compilers netcdf4 netcdf-fortran xarray scipy matplotlib
+  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION nose lapack compilers netcdf4 netcdf-fortran=4.4.5 xarray scipy matplotlib
   - git clone --branch=master --depth=100 --quiet git://github.com/clawpack/clawpack
   - cd clawpack
   - git submodule init
