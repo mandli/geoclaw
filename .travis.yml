@@ -46,6 +46,7 @@ before_script:
 script:
   - cd $CLAW/geoclaw
   - conda activate test-env
+  - export FC=gfortran
   - nosetests -sv
 
 after_failure:
