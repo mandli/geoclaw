@@ -36,7 +36,6 @@ before_script:
   # Print CPU info for debugging purposes:
   - cat /proc/cpuinfo
   - gfortran -v
-  - /usr/bin/f95 -v
   - echo "PYTHONPATH="$PYTHONPATH
   - echo "CLAW="$CLAW
   - echo "FC="$FC
