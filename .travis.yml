@@ -29,8 +29,8 @@ install:
   - export PYTHONPATH=${PWD}:$PYTHONPATH
   - export CLAW=${PWD}
   - export FC=gfortran
-  - export NETCDF4_DIR=$HOME/miniconda
-  - export LIB_PATHS=$HOME/miniconda/lib
+  - export NETCDF4_DIR=$HOME/miniconda/envs/test-env
+  - export LIB_PATHS=$HOME/miniconda/envs/test-env/lib
 
 before_script:
   # Print CPU info for debugging purposes:
@@ -43,6 +43,7 @@ before_script:
   - echo "NETCDF4_DIR="$NETCDF4_DIR
   - echo "LIB_PATHS="$LIB_PATHS
   - which $FC 
+  
 script:
   - cd $CLAW/geoclaw
   - conda activate test-env
