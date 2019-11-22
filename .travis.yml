@@ -42,6 +42,7 @@ before_script:
   - echo "FC="$FC
   - echo "NETCDF4_DIR="$NETCDF4_DIR
   - echo "LIB_PATHS="$LIB_PATHS
+  - echo "FFLAGS="$FFLAGS
   - which $FC 
   - cd $CLAW/geoclaw
   
