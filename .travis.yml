@@ -31,6 +31,8 @@ before_script:
   - export PYTHONPATH=${PWD}:$PYTHONPATH
   - export CLAW=${PWD}
   - export FC=gfortran
+# needed to remove the -fstack-protector flag that conda's gfortran uses by default
+  - unset FFLAGS
 # below paths are needed for netcdf test and multilayer
   - export NETCDF4_DIR=$HOME/miniconda/envs/test-env
   - export LIB_PATHS=$HOME/miniconda/envs/test-env/lib
