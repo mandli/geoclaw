@@ -29,7 +29,8 @@ install:
   - export PYTHONPATH=${PWD}:$PYTHONPATH
   - export CLAW=${PWD}
   - export FC=gfortran
-  - export NETCDF4_DIR="$HOME/miniconda"
+  - export NETCDF4_DIR=$HOME/miniconda
+  - export LIB_PATHS=$HOME/miniconda/lib
 before_script:
   # Print CPU info for debugging purposes:
   - cat /proc/cpuinfo
@@ -38,6 +39,7 @@ before_script:
   - echo "PYTHONPATH="$PYTHONPATH
   - echo "CLAW="$CLAW
   - echo "FC="$FC
+  - echo "NETCDF4_DIR="$NETCDF4_DIR
   - which $FC 
 script:
   - cd $CLAW/geoclaw
