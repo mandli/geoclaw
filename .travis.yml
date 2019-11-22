@@ -28,11 +28,10 @@ before_install:
   
 install:
   - conda activate test-env
-  - pip install -e .
   - export CLAW=${PWD}
   - export FC=gfortran
   - export NETCDF4_DIR="$HOME/miniconda"
-  - cd geoclaw
+  - pip install -e .
   
 before_script:
   # Print CPU info for debugging purposes:
