@@ -1,16 +1,23 @@
 language: python
 python:
-  - 3.6
-env:
-  - BUILD_TYPE="Release"
+  - 2.7
+  - 3.7
   
 before_install:
-  - sudo apt-get update
-  - sudo apt-get install gfortran liblapack-pic liblapack-dev
-  - pip install netCDF4
-  - pip install xarray
-  - pip install scipy
-  - git clone --branch=master --depth=100 --quiet git://github.com/ClimateImpactLab/clawpack
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - source "$HOME/miniconda/etc/profile.d/conda.sh"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no 
+  - conda config --add channels conda-forge
+  - conda update -q conda
+  - conda info -a
+  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION gfortran lapack compilers netcdf4 netcdf-fortran xarray scipy matplotlib
+  - git clone --branch=master --depth=100 --quiet git://github.com/clawpack/clawpack
   - cd clawpack
   - git submodule init
   - git submodule update -j 6
@@ -20,9 +27,12 @@ before_install:
   - python -c "import numpy; print(numpy.__version__)"
   
 install:
+  - conda activate test-env
   - pip install -e .
   - export CLAW=${PWD}
   - export FC=gfortran
+  - export NETCDF4_DIR="$HOME/miniconda"
+  - cd geoclaw
   
 before_script:
   # Print CPU info for debugging purposes:
