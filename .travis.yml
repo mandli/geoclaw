@@ -16,7 +16,7 @@ before_install:
   - conda config --add channels conda-forge
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION lapack compilers netcdf4 netcdf-fortran xarray scipy matplotlib
+  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION nose lapack compilers netcdf4 netcdf-fortran xarray scipy matplotlib
   - git clone --branch=master --depth=100 --quiet git://github.com/clawpack/clawpack
   - cd clawpack
   - git submodule init
@@ -26,10 +26,10 @@ before_install:
   
 install:
   - conda activate test-env
+  - export PYTHONPATH=${PWD}:$PYTHONPATH
   - export CLAW=${PWD}
   - export FC=gfortran
   - export NETCDF4_DIR="$HOME/miniconda"
-  
 before_script:
   # Print CPU info for debugging purposes:
   - cat /proc/cpuinfo
@@ -38,9 +38,10 @@ before_script:
   - echo "PYTHONPATH="$PYTHONPATH
   - echo "CLAW="$CLAW
   - echo "FC="$FC
-  
+  - which $FC 
 script:
   - cd $CLAW/geoclaw
+  - conda activate test-env
   - nosetests -sv
 
 after_failure:
