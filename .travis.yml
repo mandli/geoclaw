@@ -31,6 +31,7 @@ install:
   - export FC=gfortran
   - export NETCDF4_DIR=$HOME/miniconda
   - export LIB_PATHS=$HOME/miniconda/lib
+
 before_script:
   # Print CPU info for debugging purposes:
   - cat /proc/cpuinfo
@@ -40,6 +41,7 @@ before_script:
   - echo "CLAW="$CLAW
   - echo "FC="$FC
   - echo "NETCDF4_DIR="$NETCDF4_DIR
+  - echo "LIB_PATHS="$LIB_PATHS
   - which $FC 
 script:
   - cd $CLAW/geoclaw
