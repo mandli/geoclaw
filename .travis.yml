@@ -1,7 +1,7 @@
 language: python
 python:
   - 3.7
-  
+
 before_install:
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -11,18 +11,18 @@ before_install:
   - bash miniconda.sh -b -p $HOME/miniconda
   - source "$HOME/miniconda/etc/profile.d/conda.sh"
   - hash -r
-  - conda config --set always_yes yes --set changeps1 no 
+  - conda config --set always_yes yes --set changeps1 no
   - conda config --add channels conda-forge
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION nose lapack compilers netcdf4 netcdf-fortran=4.4.5 xarray scipy matplotlib
+  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION nose lapack compilers netcdf4 netcdf-fortran xarray scipy matplotlib
   - git clone --branch=master --depth=100 --quiet git://github.com/clawpack/clawpack
   - cd clawpack
   - git submodule init
   - git submodule update -j 6
   - rm -rf geoclaw
   - ln -s ../ geoclaw
-  
+
 install: skip
 
 before_script:
@@ -44,14 +44,14 @@ before_script:
   - echo "NETCDF4_DIR="$NETCDF4_DIR
   - echo "LIB_PATHS="$LIB_PATHS
   - echo "FFLAGS="$FFLAGS
-  - which $FC 
+  - which $FC
   - cd $CLAW/geoclaw
-  
+
 script:
   - nosetests -sv
 
 after_failure:
  - for failed_test_path in *_output ; do cat $failed_test_path/run_output.txt ; cat $failed_test_path/error_output.txt ; done
-  
+
 notifications:
   email: false
