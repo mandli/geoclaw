@@ -51,23 +51,23 @@ def test_etopo1_topo(make_plot=False, save=False):
         plt.savefig(pname)
         print('Created %s' % pname)
     
-def test_etopo1_xarray():
+# def test_etopo1_xarray():
 
-    try:
-        import xarray
-    except:
-        raise nose.SkipTest("xarray not installed, skipping test")
+#     try:
+#         import xarray
+#     except:
+#         raise nose.SkipTest("xarray not installed, skipping test")
         
-    topo10,topo10_xarray = topotools.read_netcdf('etopo1', extent=extent, 
-                                                 return_xarray=True,
-                                                 coarsen=10, verbose=True)
+#     topo10,topo10_xarray = topotools.read_netcdf('etopo1', extent=extent, 
+#                                                  return_xarray=True,
+#                                                  coarsen=10, verbose=True)
 
-    testdata_path = os.path.join(testdir, 'data', 'etopo1_10min.asc')
-    topo10input = topotools.Topography()
-    topo10input.read(testdata_path, topo_type=3)
+#     testdata_path = os.path.join(testdir, 'data', 'etopo1_10min.asc')
+#     topo10input = topotools.Topography()
+#     topo10input.read(testdata_path, topo_type=3)
     
-    assert numpy.allclose(topo10_xarray['z'], topo10input.Z), \
-           "topo10_xarray['z'] does not agree with archived data"
+#     assert numpy.allclose(topo10_xarray['z'], topo10input.Z), \
+#            "topo10_xarray['z'] does not agree with archived data"
     
 
 if __name__ == "__main__":
@@ -80,6 +80,6 @@ if __name__ == "__main__":
     else:
         # Run tests
         test_etopo1_topo()
-        test_etopo1_xarray()
+#         test_etopo1_xarray()
         print("All tests passed.")
 
