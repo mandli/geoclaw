@@ -9,6 +9,7 @@
 module dtopo_module
 
     implicit none
+
     save
     
     logical, private :: module_setup = .false.
@@ -21,7 +22,7 @@ module dtopo_module
         real(kind=8), allocatable :: dz(:, :, :)
 
         ! Geometry in space-time
-        integer :: num_cells(2)
+        integer :: num_cells(3)
         real(kind=8) :: x_lower, x_upper, y_lower, y_upper, t_lower, t_upper
         real(kind=8) :: dx, dy, dt
 
@@ -36,11 +37,7 @@ module dtopo_module
     integer, private :: num_dtopo_files = 0
     integer, private, allocatable :: dtopo_order(:)
     type(dtopo_file_type), pointer, private :: dtopo_data(:)
-    type(topo_file_type), pointer, private :: topo_files_0(:)
     real(kind=8) :: max_dt_dtopo
-    
-    logical :: topo_finalized
-    integer :: imovetopo, aux_finalized
 
 contains
 
@@ -101,25 +98,25 @@ contains
             endif
 
             ! Allocate and read in dtopo info
-            allocate(dtopo_files(num_dtopo_files))
+            allocate(dtopo_data(num_dtopo_files))
             allocate(dtopo_order(num_dtopo_files))
 
             do i = 1, num_dtopo_files
-                read(iunit,*) dtopo_files(i)%file_path
-                read(iunit,*) dtopo_files(i)%dtopo_type,        &
-                read(inunt,*) dtopo_files(i)%minleveldtopo,     &
-                read(iunit,*) dtopo_files(i)%maxleveldtopo
+                read(iunit,*) dtopo_data(i)%file_path
+                read(iunit,*) dtopo_data(i)%dtopo_type,        &
+                read(inunt,*) dtopo_data(i)%minleveldtopo,     &
+                read(iunit,*) dtopo_data(i)%maxleveldtopo
 
                 allocate(dtopo_data(i)%dz(:, :, :))
 
-                write(GEO_PARM_UNIT,*) '   fname:', dtopo_files(i)%file_path
-                write(GEO_PARM_UNIT,*) '   topo type:',dtopo_files(i)%dtopo_type
+                write(GEO_PARM_UNIT,*) '   fname:', dtopo_data(i)%file_path
+                write(GEO_PARM_UNIT,*) '   topo type:',dtopo_data(i)%dtopo_type
                 write(GEO_PARM_UNIT,*) '   minlevel, maxlevel:'
-                write(GEO_PARM_UNIT,*)  dtopo_files(i)%minleveldtopo,   &
-                                        dtopo_files(i)%maxleveldtopo
+                write(GEO_PARM_UNIT,*)       dtopo_data(i)%min_level,   &
+                                             dtopo_data(i)%max_level
 
                 ! Read in header data
-                call read_dtopo_header(dtopo_files(i))
+                call read_dtopo_header(dtopo_data(i))
             enddo
 
             ! Largest allowable dt while dtopo is moving
@@ -133,8 +130,8 @@ contains
                 finer_than = 0
                 do j = 1, num_dtopo_files
                     if (j /= i) then
-                        area_i = dxdtopo(i) * dydtopo(i)
-                        area_j = dxdtopo(j) * dydtopo(j)
+                        area_i = dtopo_data(i)%dx * dtopo_data(i)%dy
+                        area_j = dtopo_data(j)%dx * dtopo_data(j)%dy
 
                         ! If two files have the same resolution, order is
                         ! arbitrarily chosen
@@ -146,13 +143,13 @@ contains
                     endif
                 enddo
                 ! ifinerthan tells how many other files, file i is finer than
-                rank = num_dtopo - finer_than
+                rank = num_dtopo_files - finer_than
                 dtopo_order(rank) = i
             enddo
 
             ! Read in dtopo data
             do i = 1, num_dtopo_files
-                call read_dtopo(dtopo_files(i))
+                call read_dtopo(dtopo_data(i))
             enddo
 
             module_setup = .true.
@@ -179,30 +176,21 @@ contains
     !   - t0,tf - (dp) Beginning and end times for the file
     !   - dx,dy,dt - (dp) Distance between space (dx,dy) and time (dt) points
     ! ========================================================================
-    subroutine read_dtopo_header(fname,topo_type,mx,my,mt,xlow,ylow,t0,xhi, &
-        yhi,tf,dx,dy,dt)
+    subroutine read_dtopo_header(dtopo_data)
 
         implicit none
 
-        ! Input Arguments
-        character*150, intent(in) :: fname
-        integer, intent(in) :: topo_type
-
-        ! Output Arguments
-        integer, intent(out) :: mx,my,mt
-        real(kind=8), intent(out) :: xlow,ylow,t0,xhi,yhi,tf,dx,dy,dt
-
         ! Locals
         integer, parameter :: iunit = 7
-        integer :: topo_size,status
+        integer :: status
         real(kind=8) :: x,y,t,y_old,t_old
         logical :: found_file
 
         ! Open file
-        inquire(file=fname,exist=found_file)
+        inquire(file=dtopo_data%file_path, exist=found_file)
         if (.not.found_file) then
             print *, 'Missing dtopo file:'
-            print *, '    ', fname
+            print *, '    ', dtopo_data%file_path
             stop
         endif
         open(unit=iunit,file=fname,status='unknown',form='formatted')
@@ -212,67 +200,67 @@ contains
             case(1)
                 ! Initial size variables
                 topo_size = 0
-                my = 1
-                mt = 1
+                dtopo_data%num_cells(2) = 1
+                dtopo_data%num_cells(3) = 1
 
                 ! Read in first values, determines xlow, yhi and t0
-                read(iunit,*) t0,xlow,yhi
+                read(iunit,*) t0, dtopo_data%x_lower, dtopo_data%y_upper
                 topo_size = topo_size + 1
                 t = t0
-                y_old = yhi
+                y_old = dtopo_data%y_upper
                 ! Go through entire file figuring out my, mt and topo_size
                 status = 0
-                do while (status == 0.and. t.eq.t0)
-                    read(iunit,fmt=*,iostat=status) t,x,y
+                do while (status == 0 .and. abs(t - t0) < 1e-15)
+                    read(iunit,fmt=*,iostat=status) t, x, y
                     topo_size = topo_size + 1
-                    if (y /= y_old .and. t.eq.t0 ) then
-                        my = my + 1
+                    if (y /= y_old .and. abs(t - t0) < 1e-15) then
+                        dtopo_data%num_cells(2) = dtopo_data%num_cells(2) + 1
                         y_old = y
                     endif
                 enddo
-                mx = (topo_size-1)/my
+                dtopo_data%num_cells(1) = (topo_size - 1) / dtopo_data%num_cells(2)
                 do while (status == 0)
-                    read(iunit,fmt=*,iostat=status) t,x,y
+                    read(iunit,fmt=*,iostat=status) t, x, y
                     topo_size = topo_size + 1
                 enddo
 
 
                 if (status > 0) then
-                    print *, "IO error occured in ",fname,", aborting!"
+                    print *, "IO error occured in ", dtopo_data%file_path, ", aborting!"
                     stop
                 endif
 
                 ! Calculate remaining values
-                mt = (topo_size-1)/ (my*mx)
-                xhi = x
-                ylow = y
-                tf = t
-                dx = (xhi-xlow) / (mx-1)
-                dy = (yhi-ylow) / (my-1)
-                dt = (tf - t0) / (mt-1)
+                dtopo_data%num_cells(3) = (topo_size - 1) / (dtopo_data%num_cells(1) * dtopo_data%num_cells(2))
+                dtopo_data%x_upper = x
+                dtopo_data%y_lower = y
+                dtopo_data%t_upper = t
+                dtopo_data%dx = (dtopo_data%x_upper - dtopo_data%x_lower) / (dtopo_data%num_cells(1) - 1)
+                dtopo_data%dy = (dtopo_data%y_upper - dtopo_data%y_lower) / (dtopo_data%num_cells(2) - 1)
+                dtopo_data%dt = (dtopo_data%t_upper - dtopo_data%t_lower) / (dtopo_data%num_cells(3) - 1)
 
             ! New ASCII headered dtopo files, similar to topography files type
             ! 2 and 3
             case(2:3)
                 ! Read in header directly
-                read(iunit,*) mx
-                read(iunit,*) my
-                read(iunit,*) mt
-                read(iunit,*) xlow
-                read(iunit,*) ylow
-                read(iunit,*) t0
-                read(iunit,*) dx
-                read(iunit,*) dy
-                read(iunit,*) dt
+                read(iunit,*) dtopo_data%num_cells(1)
+                read(iunit,*) dtopo_data%num_cells(2)
+                read(iunit,*) dtopo_data%num_cells(3)
+                read(iunit,*) dtopo_data%x_lower
+                read(iunit,*) dtopo_data%y_lower
+                read(iunit,*) dtopo_data%t_lower
+                read(iunit,*) dtopo_data%dx
+                read(iunit,*) dtopo_data%dy
+                read(iunit,*) dtopo_data%dt
 
-                xhi = xlow + dx*(mx-1)
-                yhi = ylow + dy*(my-1)
-                tf = t0 + dt*(mt-1)
+                dtopo_data%x_upper = dtopo_data%x_lower + dtopo_data%dx * (dtopo_data%num_cells(1) - 1)
+                dtopo_data%y_upper = dtopo_data%y_lower + dtopo_data%dy * (dtopo_data%num_cells(2) - 1)
+                dtopo_data%t_upper = dtopo_data%t_lower + dtopo_data%dt * (dtopo_data%num_cells(3) - 1)
             case default
                 print *, 'ERROR:  Unrecognized topography type'
-                print *, '    topo_type = ',topo_type
+                print *, '    topo_type = ', dtopo_data%dtopo_type
                 print *, '  for dtopo file:'
-                print *, '   ', fname
+                print *, '   ', dtopo_data%file_path
                 stop
         end select
 
