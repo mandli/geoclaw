@@ -761,7 +761,7 @@ class Storm(object):
         with xr.open_dataset(path, drop_variables=['time']) as ds:
             try:
                 storm = (ds.sel(storm=storm_index)
-                     .drop('storm')
+                     .drop_vars('storm')
                      .dropna(dim='time'))
             except KeyError as e:
                 print("Provided storm name/index not found in "
