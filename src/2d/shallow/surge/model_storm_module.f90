@@ -478,6 +478,7 @@ contains
                 trans_speed_x = (abs(wind) / mod_mws) * tv(1)
                 trans_speed_y = (abs(wind) / mod_mws) * tv(2)
 
+
                 ! Convert wind velocity from top of atmospheric boundary layer
                 ! (which is what the Holland curve fit produces) to wind
                 ! velocity at 10 m above the earth's surface
@@ -713,9 +714,7 @@ contains
         i = storm_index(t, storm)
         f = coriolis(sloc(2))
         !tv = storm%velocity(:, i)
-        !Pa = ambient_pressure
         !sloc = cle_storm_location(t, storm)
-        !f = coriolis(sloc(2))
         !Pc = storm%central_pressure(i)
         !mws = storm%max_wind_speed(i)
         !mwr = storm%max_wind_radius(i)
