@@ -144,8 +144,8 @@ COMMON_SOURCES += \
   $(GEOLIB)/amr2.f90 \
   $(GEOLIB)/fgmax_read.f90 \
   $(GEOLIB)/fgmax_frompatch.f90 \
-  $(GEOLIB)/fgmax_interpolate0.f90 \
   $(GEOLIB)/fgmax_values_wind.f90 \
+  $(GEOLIB)/fgmax_interp.f90 \
   $(GEOLIB)/fgmax_finalize.f90 \
   $(GEOLIB)/check.f \
   $(GEOLIB)/restrt.f \
@@ -155,3 +155,4 @@ COMMON_SOURCES += \
   $(GEOLIB)/auxcoarsen.f \
   $(GEOLIB)/prepbigstep.f \
   $(GEOLIB)/prepregstep.f \
+  $(GEOLIB)/set_eta_init.f90 \
