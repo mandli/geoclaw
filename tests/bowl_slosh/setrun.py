@@ -388,7 +388,7 @@ def setgeo(rundata):
     #  ioutarrivaltimes,ioutsurfacemax]
     
     # == fgmax.data values ==
-    rundata.fgmax_data.num_fgmax_val = 1
+    rundata.fgmax_data.num_fgmax_val = 2
     fgmax_grids = rundata.fgmax_data.fgmax_grids  # empty list to start
     # Now append to this list objects of class fgmax_tools.FGmaxGrid
     # specifying any fgmax grids.
