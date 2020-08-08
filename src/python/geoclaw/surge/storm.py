@@ -741,7 +741,7 @@ class Storm(object):
             # occurs if we have 0 or >1 matching storms
             if 'storm' in ds.dims.keys():
                 if ds.storm.shape[0] == 0:
-                    raise ValueError('Storm/year not found in provided file')
+                    raise ValueError('SID not found in provided file')
                 else:
                     # see if a date was provided for multiple unnamed storms
                     assert start_date is not None, ValueError('Multiple storms identified and no start_date specified.')
