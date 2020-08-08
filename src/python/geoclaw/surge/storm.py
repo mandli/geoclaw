@@ -715,6 +715,112 @@ class Storm(object):
             if (self.max_wind_radius.max()) == -1 or (self.storm_radius.max() == -1):
                 warnings.warn(missing_data_warning_str)
 
+    def read_ibtracs_processed(self, path, sid):
+        r"""Read in CIL-processed IBTrACS formatted storm file
+
+        This reads in a CIL-processed version of the IBTrACS v4 data.
+
+        :Input:
+        - *path* (string) Path to the file to be read.
+        - *sid* (string, optional) IBTrACS-supplied unique track identifier.
+
+        :Raises:
+        - *ValueError* If the method cannot find the matching storm then a
+            value error is risen.
+        """
+
+        import xarray as xr
+
+        with xr.open_dataset(path) as ds:
+
+            # match on sid
+            ds = ds.sel(storm=ds.sid == sid).squeeze()
+
+            # occurs if we have 0 or >1 matching storms
+            if 'storm' in ds.dims.keys():
+                if ds.storm.shape[0] == 0:
+                    raise ValueError('Storm/year not found in provided file')
+                else:
+                    # see if a date was provided for multiple unnamed storms
+                    assert start_date is not None, ValueError('Multiple storms identified and no start_date specified.')
+
+                    start_times = ds.time.isel(time=0)
+                    start_date = numpy.datetime64(start_date)
+
+                    # find storm with start date closest to provided
+                    storm_ix = abs(start_times - start_date).argmin()
+                    ds = ds.isel(storm=storm_ix).squeeze()
+                    assert 'storm' not in ds.dims.keys()
+
+            # cut down dataset to only non-null times
+            valid_t = ds.time.notnull()
+            if valid_t.sum() == 0:
+                raise ValueError('No valid wind speeds found for this storm.')
+            ds = ds.sel(time=valid_t)
+
+            ## THESE CANNOT BE MISSING SO DROP
+            ## IF EITHER MISSING
+            valid = ds['v_total'].notnull() & ds['pstore'].notnull()
+            if not valid.any():
+                raise NoDataError(missing_necessary_data_warning_str)
+            ds = ds.sel(time=valid)
+
+            # fill in RMW
+            ds["rmstore"] = ds.rmstore.fillna(ds.rmstore_estimated)
+
+
+            ## CONVERT TO GEOCLAW FORMAT
+
+            # assign basin to be the basin where track originates
+            # in case track moves across basins
+            self.basin = "NOT_SET"
+            self.name = ds.name.item()
+            self.ID = ds.sid.item()
+
+            # convert datetime64 to datetime.datetime
+            self.t = []
+            years = ds.datetime.dt.year.values
+            months = ds.datetime.dt.month.values
+            days = ds.datetime.dt.day.values
+            hours = ds.datetime.dt.hour.values
+            minutes = ds.datetime.dt.minute.values
+            seconds = ds.datetime.dt.second.values
+            for dx in range(len(ds.datetime)):
+                self.t.append(datetime.datetime(years[dx],months[dx],days[dx],hours[dx],minutes[dx],seconds[dx]))
+
+            ## set landfall events
+            self.event = numpy.array([""]*len(ds.datetime))
+            landfalls = (ds.dist2land<=0) & (ds.dist2land.shift(time=1)>0)
+
+            for i in range(landfalls.sum().item()):
+                ix = landfalls.argmax().item()
+                self.event[landfalls.argmax().item()] = "L"
+                landfalls[ix] = False
+
+            ## time offset
+            if (self.event=='L').any():
+                # if landfall, use last landfall
+                self.time_offset = numpy.array(self.t)[self.event=='L'][-1]
+            else:
+                #if no landfall, use last time of storm
+                self.time_offset = self.t[-1]
+
+            # Classification, note that this is not the category of the storm
+            self.classification = ["NOT_SET"] * len(self.event)
+            self.eye_location = numpy.array([ds.longstore,ds.latstore]).T
+
+            # Intensity information - for now, including only common, basic intensity
+            # info.
+            # TODO: add more detailed info for storms that have it
+
+            self.max_wind_speed = ds.v_total.where(ds.v_total.notnull(),-1).values
+            self.central_pressure = ds.pstore.where(ds.pstore.notnull(),-1).values
+            self.max_wind_radius = ds.rmstore.where(ds.rmstore.notnull(),-1).values
+            self.storm_radius = ds.storm_radius.where(ds.storm_radius.notnull(),-1).values
+
+            # warn if you have missing vals for RMW or ROCI
+            if (self.max_wind_radius.max()) == -1 or (self.storm_radius.max() == -1):
+                warnings.warn(missing_data_warning_str)
 
     def read_emanuel(
             self, path, storm_name, velocity_varname='v_total', verbose=False):
