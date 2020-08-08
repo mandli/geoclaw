@@ -19,13 +19,15 @@ def test_etopo1_topo(make_plot=False, save=False):
     
     try:
         import netCDF4
-    except:
+    except ImportError:
         raise nose.SkipTest("netCDF4 not installed, skipping test")
-        
-    topo1 = topotools.read_netcdf('etopo1', extent=extent, verbose=True)
-
-    topo10 = topotools.read_netcdf('etopo1', extent=extent, 
-                                   coarsen=10, verbose=True)
+    
+    try:
+        topo1 = topotools.read_netcdf('etopo1', extent=extent, verbose=True)    
+        topo10 = topotools.read_netcdf('etopo1', extent=extent, 
+                                        coarsen=10, verbose=True)
+    except OSError:
+        raise nose.SkipTest("NGDC server unavailable, skipping test")
 
     testdata_path = os.path.join(os.path.dirname(__file__), 'data', 'etopo1_10min.asc')
     if save:

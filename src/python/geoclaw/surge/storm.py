@@ -824,7 +824,6 @@ class Storm(object):
             if (self.max_wind_radius.max()) == -1 or (self.storm_radius.max() == -1):
                 warnings.warn(missing_data_warning_str)
             
-            
     def read_emanuel(
             self, path, storm_name, velocity_varname='v_total', verbose=False):
         r"""Read in Kerry Emanuel's storm file
