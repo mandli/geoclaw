@@ -26,6 +26,7 @@ workflow in a `setrun.py` file would do the following:
     - ATCF (reading only)
     - HURDAT (reading only)
     - IBTrACS (reading only)
+    - CIL-processed IBTrACS file (reading only)
     - Kerry Emanuel (reading only)
     - JMA (reading only)
     - IMD (planned)
@@ -179,6 +180,7 @@ class Storm(object):
                           "atcf": ["ATCF", "http://www.nrlmry.navy.mil/atcf_web/docs/database/new/database.html"],
                           "hurdat": ["HURDAT", "http://www.aoml.noaa.gov/hrd/hurdat/Data_Storm.html"],
                           "ibtracs": ["IBTrACS", "https://www.ncdc.noaa.gov/ibtracs/index.php?name=ib-v4-access"],
+                          "ibtracs_processed": ["IBTrACS", "Processed in CIL pipeline"],
                           "emanuel":["Kerry Emanuel", "Email Correspondence"],
                           "jma": ["JMA", "http://www.jma.go.jp/jma/jma-eng/jma-center/rsmc-hp-pub-eg/Besttracks/e_format_bst.html"],
                           "imd": ["IMD", "http://www.rsmcnewdelhi.imd.gov.in/index.php"],
@@ -721,12 +723,12 @@ class Storm(object):
         This reads in a CIL-processed version of the IBTrACS v4 data.
 
         :Input:
-        - *path* (string) Path to the file to be read.
-        - *sid* (string, optional) IBTrACS-supplied unique track identifier.
+         - *path* (string) Path to the file to be read.
+         - *sid* (string, optional) IBTrACS-supplied unique track identifier.
 
         :Raises:
-        - *ValueError* If the method cannot find the matching storm then a
-            value error is risen.
+         - *ValueError* If the method cannot find the matching storm then a
+             value error is risen.
         """
 
         import xarray as xr
@@ -821,7 +823,8 @@ class Storm(object):
             # warn if you have missing vals for RMW or ROCI
             if (self.max_wind_radius.max()) == -1 or (self.storm_radius.max() == -1):
                 warnings.warn(missing_data_warning_str)
-
+            
+            
     def read_emanuel(
             self, path, storm_name, velocity_varname='v_total', verbose=False):
         r"""Read in Kerry Emanuel's storm file
