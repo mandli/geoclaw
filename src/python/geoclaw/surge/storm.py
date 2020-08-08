@@ -816,9 +816,9 @@ class Storm(object):
             # TODO: add more detailed info for storms that have it
 
             self.max_wind_speed = ds.v_total.where(ds.v_total.notnull(),-1).values
-            self.central_pressure = ds.pstore.where(ds.pstore.notnull(),-1).values
-            self.max_wind_radius = ds.rmstore.where(ds.rmstore.notnull(),-1).values
-            self.storm_radius = ds.storm_radius.where(ds.storm_radius.notnull(),-1).values
+            self.central_pressure = units.convert(ds.pstore,'hPa','Pa').where(ds.pstore.notnull(),-1).values
+            self.max_wind_radius = units.convert(ds.rmstore,'km','m').where(ds.rmstore.notnull(),-1).values
+            self.storm_radius = units.convert(ds.storm_radius,'km','m').where(ds.storm_radius.notnull(),-1).values
 
             # warn if you have missing vals for RMW or ROCI
             if (self.max_wind_radius.max()) == -1 or (self.storm_radius.max() == -1):
