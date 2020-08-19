@@ -768,7 +768,13 @@ class Storm(object):
             ds = ds.sel(time=valid)
 
             # fill in RMW
-            ds["rmstore"] = ds.rmstore.fillna(ds.rmstore_estimated)
+            
+            rmstore_fill = np.minimum(
+                ds.rmstore_estimated, ds.storm_radius
+            ).fillna(
+                ds.rmstore_estimated
+            )
+            ds["rmstore"] = ds.rmstore.fillna(rmstore_fill)
 
 
             ## CONVERT TO GEOCLAW FORMAT
