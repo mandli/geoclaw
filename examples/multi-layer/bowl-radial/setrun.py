@@ -426,7 +426,7 @@ def set_multilayer(rundata):
     # Algorithm parameters
     data.eigen_method = 2
     data.inundation_method = 2
-    data.richardson_tolerance = np.infty
+    data.richardson_tolerance = np.inf
     data.wave_tolerance = [1e-3,1e-2]
 
     rundata.qinit_data.qinit_type = 4
