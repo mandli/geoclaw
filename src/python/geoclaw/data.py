@@ -28,8 +28,6 @@ Classes representing parameters for GeoClaw runs
  - LAT2METER factor to convert degrees in latitude to meters
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 import os
 import numpy
 import clawpack.clawutil.data
@@ -548,7 +546,7 @@ class SurgeData(clawpack.clawutil.data.ClawData):
                                'DeMaria': 7,
                                'willoughby': 9,
                               }
-    storm_spec_not_implemented = ['CLE', 'willoughby']
+    storm_spec_not_implemented = ['CLE']
 
     def __init__(self):
         super(SurgeData, self).__init__()
