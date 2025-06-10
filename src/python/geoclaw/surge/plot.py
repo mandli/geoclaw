@@ -103,6 +103,30 @@ def gauge_surface(cd, dry_tolerance=1e-16):
                               cd.gaugesoln.q[3, :])
 
 
+def gauge_topo(cd, dry_tolerance=1e-16, topo_index=None):
+    """"""
+    if not topo_index:
+        # Assumes that topo is in the first location in aux
+        topo_index = 4 + 0
+    return cd.gaugesoln.q[topo_index, :]
+
+def gauge_wind(cd, dry_tolerance=1e-16, wind_index=None):
+    """"""
+    if not wind_index:
+        # Assumes that all aux fields were written out
+        wind_index = 4 + wind_field 
+    return np.sqrt(cd.gaugesoln.q[wind_index, :]**2 + 
+                   cd.gaugesoln.q[wind_index + 1, :]**2)
+
+
+def gauge_pressure(cd, dry_tolerance=1e-16, pressure_index=None):
+    """"""
+    if not pressure_index:
+        # Assumes that all aux fields were written out
+        pressure_index = 4 + pressure_field 
+    return cd.gaugesoln.q[pressure_index, :]
+
+
 def plot_landfall_gauge(gauge, axes, landfall=0.0, style='b', kwargs={}):
     """Plot gauge data on the axes provided
 

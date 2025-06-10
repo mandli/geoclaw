@@ -170,6 +170,60 @@ def setplot(plotdata=None):
     plotitem = plotaxes.new_plotitem(plot_type='1d_plot')
     plotitem.plot_var = surgeplot.gauge_dry_regions
     plotitem.kwargs = {"color":'lightcoral', "linewidth":5}
+
+    # ========================================================================
+    plotfigure = plotdata.new_plotfigure(name='Gauge Wind Speed',
+                                         type='each_gauge', figno=476)
+    plotfigure.show = True
+    plotfigure.clf_each_gauge = True
+
+    plotaxes = plotfigure.new_plotaxes()
+    plotaxes.time_scale = 1 / (24 * 60**2)
+    plotaxes.grid = True
+    plotaxes.xlimits = 'auto'
+    plotaxes.ylimits = 'auto'
+    plotaxes.title = "Wind Speed"
+    plotaxes.ylabel = "Speed (m/s)"
+    plotaxes.time_label = "Days relative to landfall"
+    
+    plotitem = plotaxes.new_plotitem(plot_type='1d_plot')
+    plotitem.plot_var = lambda cd: surgeplot.gauge_wind(cd, wind_index=4)
+
+    # ========================================================================
+    plotfigure = plotdata.new_plotfigure(name='Gauge Pressure',
+                                         type='each_gauge', figno=477)
+    plotfigure.show = True
+    plotfigure.clf_each_gauge = True
+
+    plotaxes = plotfigure.new_plotaxes()
+    plotaxes.time_scale = 1 / (24 * 60**2)
+    plotaxes.grid = True
+    plotaxes.xlimits = 'auto'
+    plotaxes.ylimits = 'auto'
+    plotaxes.title = "Pressure"
+    plotaxes.ylabel = "Pressure (kPa)"
+    plotaxes.time_label = "Days relative to landfall"
+    
+    plotitem = plotaxes.new_plotitem(plot_type='1d_plot')
+    plotitem.plot_var = lambda cd: surgeplot.gauge_pressure(cd, pressure_index=6)
+
+    # ========================================================================
+    plotfigure = plotdata.new_plotfigure(name='Gauge Bathy',
+                                         type='each_gauge', figno=478)
+    plotfigure.show = True
+    plotfigure.clf_each_gauge = True
+
+    plotaxes = plotfigure.new_plotaxes()
+    plotaxes.time_scale = 1 / (24 * 60**2)
+    plotaxes.grid = True
+    plotaxes.xlimits = 'auto'
+    plotaxes.ylimits = 'auto'
+    plotaxes.title = "Pressure"
+    plotaxes.ylabel = "Pressure (kPa)"
+    plotaxes.time_label = "Days relative to landfall"
+
+    plotitem = plotaxes.new_plotitem(plot_type='1d_plot')
+    plotitem.plot_var = surgeplot.gauge_topo
     
     #  Gauge Location Plot
     def gauge_location_afteraxes(cd):
@@ -199,9 +253,11 @@ def setplot(plotdata=None):
 
     plotdata.printfigs = True                # print figures
     plotdata.print_format = 'png'            # file format
-    plotdata.print_framenos = 'all'          # list of frames to print
+    # plotdata.print_framenos = 'all'          # list of frames to print
+    plotdata.print_framenos = 'none'          # list of frames to print
     plotdata.print_gaugenos = [1, 2, 3, 4]   # list of gauges to print
-    plotdata.print_fignos = 'all'            # list of figures to print
+    # plotdata.print_fignos = 'all'            # list of figures to print
+    plotdata.print_fignos = [300, 476, 477, 478]
     plotdata.html = True                     # create html files of plots?
     plotdata.latex = True                    # create latex file of plots?
     plotdata.latex_figsperline = 2           # layout of plots
