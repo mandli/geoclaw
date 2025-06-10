@@ -1044,9 +1044,12 @@ class Storm(object):
                 self.time_offset = self.t[n]
 
             # Time
-            if not isinstance(self.time_offset, float):
+            if isinstance(self.time_offset, datetime.datetime):
                 data[-1][0] = (self.t[n] - self.time_offset).total_seconds()
+            elif isinstance(self.time_offset, np.datetime64):
+                data[-1][0] = (self.t[n] - self.time_offset) / np.timedelta64(1, 's')
             else:
+                # Assume that this is a float or something similar
                 data[-1][0] = self.t[n] - self.time_offset
             # Eye-location
             data[-1][1:3] = self.eye_location[n, :]
