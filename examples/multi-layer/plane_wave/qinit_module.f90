@@ -4,7 +4,7 @@ module qinit_module
     save
 
     logical, private :: module_setup = .false.
-    
+
     ! Type of q initialization
     integer, public :: qinit_type
 
@@ -20,14 +20,14 @@ module qinit_module
     real(kind=8), public :: t_hi_qinit
     real(kind=8), public :: dx_qinit
     real(kind=8), public :: dy_qinit
-    
+
     ! Work array
     real(kind=8), private, allocatable :: qinit(:)
 
     integer, private :: mx_qinit
     integer, private :: my_qinit
 
-    ! Specifc types of intialization    
+    ! Specifc types of intialization
     ! Type of perturbation to add
     integer, private :: wave_family
     real(kind=8), private :: init_location(2), epsilon
@@ -36,33 +36,33 @@ module qinit_module
 contains
 
     subroutine set_qinit(fname)
-    
+
         use geoclaw_module, only: GEO_PARM_UNIT
-    
+
         implicit none
-        
+
         ! Subroutine arguments
         character(len=*), optional, intent(in) :: fname
-        
+
         ! File handling
         character(len=150) :: qinit_fname
         integer, parameter :: unit = 7
         character(len=150) :: x
-        
+
         if (.not.module_setup) then
 
             write(GEO_PARM_UNIT,*) ' '
             write(GEO_PARM_UNIT,*) '--------------------------------------------'
             write(GEO_PARM_UNIT,*) 'SETQINIT:'
             write(GEO_PARM_UNIT,*) '-------------'
-            
+
             ! Open the data file
             if (present(fname)) then
                 call opendatafile(unit,fname)
             else
                 call opendatafile(unit,"qinit.data")
             endif
-            
+
             read(unit,"(i1)") qinit_type
             if (qinit_type == 0) then
                 ! No perturbation specified
@@ -75,7 +75,7 @@ contains
 
                 write(GEO_PARM_UNIT,*) '   min_level, max_level, qinit_fname:'
                 write(GEO_PARM_UNIT,*)  min_level_qinit, max_level_qinit, qinit_fname
-                
+
                 call read_qinit(qinit_fname)
             else if (qinit_type >= 5) then
                 read(unit,*) epsilon
@@ -101,25 +101,25 @@ contains
 
 
     subroutine add_perturbation(meqn,mbc,mx,my,xlower,ylower,dx,dy,q,maux,aux)
-    
+
         use geoclaw_module, only: sea_level, pi, g => grav, rho
         use multilayer_module, only: aux_layer_index, r, eta_init
-    
+
         implicit none
-    
+
         ! Subroutine arguments
         integer, intent(in) :: meqn,mbc,mx,my,maux
         real(kind=8), intent(in) :: xlower,ylower,dx,dy
         real(kind=8), intent(inout) :: q(meqn,1-mbc:mx+mbc,1-mbc:my+mbc)
         real(kind=8), intent(inout) :: aux(maux,1-mbc:mx+mbc,1-mbc:my+mbc)
-        
+
         ! Local
         integer :: i,j
         real(kind=8) :: ximc,xim,x,xc,xip,xipc,yjmc,yjm,y,yc,yjp,yjpc,dq
 
         real(kind=8) :: xmid,m,x_c,y_c, effective_b
         real(kind=8) :: eigen_vector(6),gamma,lambda,alpha,h_1,h_2,deta
-        
+
         ! Topography integral function
         real(kind=8) :: topointegral
 
@@ -159,7 +159,7 @@ contains
                 x = xlower + (i - 0.5d0) * dx
                 do j=1,my
                     y = ylower + (j - 0.5d0) * dy
-                    
+
                     ! Test perturbations - these only work in the x-direction
                     if (qinit_type == 5 .or. qinit_type == 6) then
                         ! Calculate wave family for perturbation
@@ -222,30 +222,30 @@ contains
             enddo
 
         endif
-        
+
     end subroutine add_perturbation
 
-        
+
     ! currently only supports one file type:
     ! x,y,z values, one per line in standard order from NW corner to SE
     ! z is perturbation from standard depth h,hu,hv set in qinit_geo,
     ! if iqinit = 1,2, or 3 respectively.
-    ! if iqinit = 4, the z column corresponds to the definition of the 
+    ! if iqinit = 4, the z column corresponds to the definition of the
     ! surface elevation eta. The depth is then set as q(i,j,1)=max(eta-b,0)
     subroutine read_qinit(fname)
-    
+
         use geoclaw_module, only: GEO_PARM_UNIT
-        
+
         implicit none
-        
+
         ! Subroutine arguments
         character(len=150) :: fname
-        
+
         ! Data file opening
         integer, parameter :: unit = 19
         integer :: i,num_points,status
         double precision :: x,y
-        
+
         print *,'  '
         print *,'Reading qinit data from file  ', fname
         print *,'  '
@@ -254,23 +254,23 @@ contains
         write(GEO_PARM_UNIT,*) 'Reading qinit data from'
         write(GEO_PARM_UNIT,*) fname
         write(GEO_PARM_UNIT,*) '  '
-        
+
         open(unit=unit, file=fname, iostat=status, status="unknown", &
              form='formatted',action="read")
         if ( status /= 0 ) then
             print *,"Error opening file", fname
             stop
         endif
-        
+
         ! Initialize counters
         num_points = 0
         mx_qinit = 0
-        
+
         ! Read in first values, determines x_low and y_hi
         read(unit,*) x_low_qinit,y_hi_qinit
         num_points = num_points + 1
         mx_qinit = mx_qinit + 1
-        
+
         ! Sweep through first row figuring out mx
         y = y_hi_qinit
         do while (y_hi_qinit == y)
@@ -280,7 +280,7 @@ contains
         enddo
         ! We over count by one in the above loop
         mx_qinit = mx_qinit - 1
-        
+
         ! Continue to count the rest of the lines
         do
             read(unit,*,iostat=status) x,y
@@ -291,23 +291,23 @@ contains
             print *,"ERROR:  Error reading qinit file ",fname
             stop
         endif
-        
+
         ! Extract rest of geometry
         x_hi_qinit = x
         y_low_qinit = y
         my_qinit = num_points / mx_qinit
         dx_qinit = (x_hi_qinit - x_low_qinit) / (mx_qinit-1)
         dy_qinit = (y_hi_qinit - y_low_qinit) / (my_qinit-1)
-        
+
         rewind(unit)
         allocate(qinit(num_points))
-        
+
         ! Read and store the data this time
         do i=1,num_points
             read(unit,*) x,y,qinit(i)
         enddo
         close(unit)
-        
+
     end subroutine read_qinit
 
 end module qinit_module

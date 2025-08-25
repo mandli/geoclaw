@@ -7,13 +7,11 @@ that will be read in by the Fortran code.
 
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import datetime
 import shutil
 import gzip
+from pathlib import Path
 
 import numpy as np
 
@@ -28,8 +26,7 @@ def seconds2days(seconds):
     return seconds / (60.0**2 * 24.0)
 
 # Scratch directory for storing topo and dtopo files:
-scratch_dir = os.path.join(os.environ["CLAW"], 'geoclaw', 'scratch')
-
+scratch_dir = (Path(os.environ["CLAW"]) / "geoclaw" / "scratch").resolve()
 
 # ------------------------------
 def setrun(claw_pkg='geoclaw'):
@@ -381,7 +378,7 @@ def setgeo(rundata):
     # the smaller domains
     clawutil.data.get_remote_file(
            "https://depts.washington.edu/clawpack/geoclaw/topo/gulf_caribbean.tt3.tar.bz2")
-    topo_path = os.path.join(scratch_dir, 'gulf_caribbean.tt3')
+    topo_path = scratch_dir / 'gulf_caribbean.tt3'
     topo_data.topofiles.append([3, topo_path])
 
     # == fgout grids ==
@@ -403,32 +400,52 @@ def setgeo(rundata):
     data.display_landfall_time = True
 
     # AMR parameters, m/s and m respectively
-    data.wind_refine = [20.0, 40.0, 60.0]
-    data.R_refine = [60.0e3, 40e3, 20e3]
+    import pandas as pd
+    import xarray as xr
+    data.wind_refine = pd.DataFrame([[20.0], [40.0], [60.0]])
+    data.R_refine = xr.DataArray([60.0e3, 40e3, 20e3])
 
     # Storm parameters - Parameterized storm (Holland 1980)
-    data.storm_specification_type = 'holland80'  # (type 1)
-    data.storm_file = os.path.expandvars(os.path.join(os.getcwd(),
-                                         'isaac.storm'))
-
-    # Convert ATCF data to GeoClaw format
-    clawutil.data.get_remote_file(
-                   "http://ftp.nhc.noaa.gov/atcf/archive/2012/bal092012.dat.gz")
-    atcf_path = os.path.join(scratch_dir, "bal092012.dat")
-    # Note that the get_remote_file function does not support gzip files which
-    # are not also tar files.  The following code handles this
-    with gzip.open(".".join((atcf_path, 'gz')), 'rb') as atcf_file,    \
-            open(atcf_path, 'w') as atcf_unzipped_file:
-        atcf_unzipped_file.write(atcf_file.read().decode('ascii'))
-
-    # Uncomment/comment out to use the old version of the Ike storm file
-    isaac = Storm(path=atcf_path, file_format="ATCF")
-
+    # data.storm_specification_type = 'holland80'
+    data.storm_specification_type = 'data'
+    data.storm_file = (Path() / 'isaac.storm').resolve()
+    isaac = Storm()
     # Calculate landfall time - Need to specify as the file above does not
     # include this info (~2345 UTC - 6:45 p.m. CDT - on August 28)
-    isaac.time_offset = datetime.datetime(2012, 8, 29, 0)
+    isaac.time_offset = np.datetime64("2012-08-29T00:00")
 
-    isaac.write(data.storm_file, file_format='geoclaw')
+    if data.storm_specification_type == 'holland80':
+        # Convert ATCF data to GeoClaw format
+        clawutil.data.get_remote_file(
+                       "http://ftp.nhc.noaa.gov/atcf/archive/2012/bal092012.dat.gz")
+        atcf_path = scratch_dir / "bal092012.dat"
+        # Note that the get_remote_file function does not support gzip files which
+        # are not also tar files.  The following code handles this
+        with gzip.open(atcf_path.with_suffix(".dat.gz"), 'rb') as atcf_file,    \
+                open(atcf_path, 'w') as atcf_unzipped_file:
+            atcf_unzipped_file.write(atcf_file.read().decode('ascii'))
+
+        # Uncomment/comment out to use the old version of the Ike storm file
+        isaac.read(path=atcf_path, file_format="ATCF")
+
+        isaac.write(data.storm_file, file_format='geoclaw')
+
+    elif data.storm_specification_type == "data":
+        # ASCII
+        isaac.file_format = 'NWS12'
+        isaac.file_paths.append((Path() / "isaac.PRE").resolve())
+        isaac.file_paths.append((Path() / "isaac.WIN").resolve())
+
+        # NetCDF
+        # isaac.file_format = "NWS13"
+        # isaac.file_paths.append((Path() / "isaac.nc").resolve())
+        # # For NetCDF we need to set this to the epoch or things do not work yet
+        # isaac.time_offset = np.datetime64("1970-01-01")
+
+        isaac.write(data.storm_file, file_format='data')
+
+    else:
+        raise ValueError("Invalid storm specification type.")
 
     # =======================
     #  Set Variable Friction
@@ -442,12 +459,12 @@ def setgeo(rundata):
     # Entire domain
     data.friction_regions.append([rundata.clawdata.lower,
                                   rundata.clawdata.upper,
-                                  [np.infty, 0.0, -np.infty],
+                                  [np.inf, 0.0, -np.inf],
                                   [0.030, 0.022]])
 
     # La-Tex Shelf
     data.friction_regions.append([(-98, 25.25), (-90, 30),
-                                  [np.infty, -10.0, -200.0, -np.infty],
+                                  [np.inf, -10.0, -200.0, -np.inf],
                                   [0.030, 0.012, 0.022]])
 
     return rundata

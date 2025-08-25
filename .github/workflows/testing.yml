@@ -23,7 +23,10 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install gfortran liblapack-pic liblapack-dev libnetcdf-dev libnetcdff-dev
+        sudo apt-get install gfortran
+        # sudo apt-get liblapack-pic 
+        sudo apt-get install liblapack-dev
+        sudo apt-get install libnetcdf-dev libnetcdff-dev
         python -m pip install --upgrade pip
         pip install flake8 meson-python ninja pytest numpy pandas xarray netCDF4
         # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
