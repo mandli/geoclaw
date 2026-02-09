@@ -1534,7 +1534,7 @@ def topo2kmz(topo, zlim=(-20,20), mask_outside_zlim=True, sea_level=0.,
                                          data_break=sea_level)
 
     if mask_outside_zlim:
-        Z = ma.masked_where(np.logical_or(topo.Z<zlim[0], topo.Z>zlim[1]), topo.Z)
+        Z = np.ma.masked_where(np.logical_or(topo.Z<zlim[0], topo.Z>zlim[1]), topo.Z)
         cbar_extend = 'neither'
     else:
         Z = topo.Z
@@ -1544,7 +1544,7 @@ def topo2kmz(topo, zlim=(-20,20), mask_outside_zlim=True, sea_level=0.,
     os.system('mkdir -p %s' % kml_dir)
     print('Will put png and kml files in %s' % kml_dir)
 
-    Z_land = ma.masked_where(Z<sea_level, Z)
+    Z_land = np.ma.masked_where(Z<sea_level, Z)
     png_filename = '%s/%s_land.png' % (kml_dir, name)
     fig,ax,png_extent,kml_dpi = pcolorcells_for_kml(topo.X, topo.Y,
                                          Z_land, png_filename=png_filename,
@@ -1552,7 +1552,7 @@ def topo2kmz(topo, zlim=(-20,20), mask_outside_zlim=True, sea_level=0.,
     if close_figs:
         plt.close(fig)
 
-    Z_water = ma.masked_where(Z>=sea_level, Z)
+    Z_water = np.ma.masked_where(Z>=sea_level, Z)
     png_filename = '%s/%s_water.png' % (kml_dir, name)
     fig,ax,png_extent,kml_dpi = pcolorcells_for_kml(topo.X, topo.Y,
                                          Z_water, png_filename=png_filename,
@@ -1695,7 +1695,7 @@ def dtopo_contours2kmz(dtopofiles, dtopo_type=3, dZ_interval=1, dZmax=40,
         dtopo = dtopotools.DTopography(dtopofile, dtopo_type=dtopo_type)
 
         # first make empty plot of right dimensions:
-        Zm = ma.masked_where(dtopo.Y < 90, dtopo.Y)  # all masked
+        Zm = np.ma.masked_where(dtopo.Y < 90, dtopo.Y)  # all masked
         fig,ax,png_extent,kml_dpi = pcolorcells_for_kml(dtopo.X, dtopo.Y, Zm,
                                                  png_filename=None, dpc=4,
                                                  verbose=verbose)

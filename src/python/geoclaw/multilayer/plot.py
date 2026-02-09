@@ -7,7 +7,7 @@ Plotting routines for multilayer simulations with GeoClaw
     Kyle Mandli (2011-2-07) Initial version
 """
 
-import numpy
+import numpy as np
 import matplotlib.pyplot as plt
 
 from clawpack.visclaw import colormaps, geoplot, gaugetools
@@ -51,7 +51,7 @@ def layered_land(surface, DRY_TOL=10**-3):
     return land
 
 def extract_eta(h,eta,DRY_TOL=10**-3):
-    masked_eta = numpy.ma.masked_where(numpy.abs(h) < DRY_TOL, eta)
+    masked_eta = np.ma.masked_where(np.abs(h) < DRY_TOL, eta)
     return masked_eta
 
 
@@ -85,7 +85,7 @@ def eta_elevation(surface, DRY_TOL=10**-3):
             h = h2
             eta = eta2(cd)
             eta_init = ml_data.eta[1]
-        return numpy.ma.masked_where(b < eta_init, eta, numpy.ma.masked_where(numpy.abs(h) < DRY_TOL, h))
+        return np.ma.masked_where(b < eta_init, eta, np.ma.masked_where(np.abs(h) < DRY_TOL, h))
 
     return eta_func
 
@@ -106,8 +106,8 @@ def initially_wet(surface, DRY_TOL=10**-3):
             h = h2
             eta = eta2(cd)
             eta_init = ml_data.eta[1]
-        mask = numpy.logical_or(b>eta_init, numpy.abs(h)<DRY_TOL)
-        return numpy.ma.masked_where(mask, eta)
+        mask = np.logical_or(b>eta_init, np.abs(h)<DRY_TOL)
+        return np.ma.masked_where(mask, eta)
 
     return eta_func
 
@@ -128,8 +128,8 @@ def inundated(surface, DRY_TOL=10**-3):
             h = h2
             eta = eta2(cd)
             eta_init = ml_data.eta[1]
-        mask = numpy.logical_or(b<eta_init, numpy.abs(h)<DRY_TOL)
-        return numpy.ma.masked_where(mask, h)
+        mask = np.logical_or(b<eta_init, np.abs(h)<DRY_TOL)
+        return np.ma.masked_where(mask, h)
 
     return h_func
 
@@ -149,8 +149,8 @@ def b(current_data):
 
 
 def extract_velocity(h, hu, DRY_TOL=10**-8):
-    u = numpy.ones(hu.shape) * numpy.nan
-    index = numpy.nonzero((numpy.abs(h) > DRY_TOL) * (h != numpy.nan))
+    u = np.ones(hu.shape) * np.nan
+    index = np.nonzero((np.abs(h) > DRY_TOL) * (h != np.nan))
     u[index[0], index[1]] = hu[index[0], index[1]] / h[index[0], index[1]]
     return u
 
@@ -180,14 +180,14 @@ def water_speed1(current_data):
     u = water_u1(current_data)
     v = water_v1(current_data)
 
-    return numpy.sqrt(u**2 + v**2)
+    return np.sqrt(u**2 + v**2)
 
 
 def water_speed2(current_data):
     u = water_u2(current_data)
     v = water_v2(current_data)
 
-    return numpy.sqrt(u**2 + v**2)
+    return np.sqrt(u**2 + v**2)
 
 
 def water_speed_depth_ave(current_data):
@@ -575,5 +575,3 @@ def add_land_cross_section(plotaxes):
     plotitem.color = 'g'
 
     plotitem.show = True
-
-

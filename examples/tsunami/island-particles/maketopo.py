@@ -3,9 +3,8 @@
 Module to create topo and qinit data files for this example.
 """
 
-from __future__ import absolute_import
-from clawpack.geoclaw.topotools import Topography
-from numpy import *
+import clawpack.geoclaw.topotools as topotools
+import numpy as np
 
 def maketopo():
     """
@@ -19,9 +18,9 @@ def maketopo():
     yupper = 50.e0
     outfile= "island.tt3"     
 
-    topography = Topography(topo_func=topo)
-    topography.x = linspace(xlower,xupper,nxpoints)
-    topography.y = linspace(ylower,yupper,nypoints)
+    topography = topotools.Topography(topo_func=topo)
+    topography.x = np.linspace(xlower,xupper,nxpoints)
+    topography.y = np.linspace(ylower,yupper,nypoints)
     topography.write(outfile, topo_type=3, Z_format="%22.15e")
 
 def makeqinit():
@@ -36,9 +35,9 @@ def makeqinit():
     ylower = -50.e0
     outfile= "qinit.xyz"     
 
-    topography = Topography(topo_func=qinit)
-    topography.x = linspace(xlower,xupper,nxpoints)
-    topography.y = linspace(ylower,yupper,nypoints)
+    topography = topotools.Topography(topo_func=qinit)
+    topography.x = np.linspace(xlower,xupper,nxpoints)
+    topography.y = np.linspace(ylower,yupper,nypoints)
     topography.write(outfile, topo_type=1)
 
 def topo(x,y):
@@ -48,7 +47,7 @@ def topo(x,y):
     ze = -((x-40.)**2 + (y-35.)**2)/20.
     
     #z_island = where(ze>-10., 100.*exp(ze), 0.)
-    z_island = where(ze>-10., 150.*exp(ze), 0.)
+    z_island = np.where(ze>-10., 150.*np.exp(ze), 0.)
     z = -50 + z_island
     return z
 
@@ -57,9 +56,7 @@ def qinit(x,y):
     """
     Dam break
     """
-    from numpy import where
-    eta = where(x<10, 40., 0.)
-    return eta
+    return np.where(x<10, 40., 0.)
 
 if __name__=='__main__':
     maketopo()

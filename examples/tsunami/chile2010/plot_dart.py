@@ -2,16 +2,16 @@
 Compare DART buoy results to NOAA results.
 """
 
-from __future__ import absolute_import
-import pylab 
+import matplotlib.pyplot as plt
 from pyclaw.plotters.data import ClawPlotData
-from matplotlib import image
 
-dartpng = image.imread('dart32412_comp-2.png')
-pylab.figure(400)
-pylab.clf()
-pylab.imshow(dartpng)
-pylab.hold(True)
+# from matplotlib import image
+
+dartpng = plt.image.imread('dart32412_comp-2.png')
+plt.figure(400)
+plt.clf()
+plt.imshow(dartpng)
+plt.hold(True)
 
 # origin of plot in pixels on image:
 t0 = 195.
@@ -26,14 +26,14 @@ eta = gaugedata.q[:,3]
 t = t0 + tscale * (t / 3600.)
 y = y0 + yscale*eta
 
-pylab.plot(t,y,'b')
-pylab.plot([160,225],[550,550],'b')
-pylab.text(240,560,'GeoClaw (added to NOAA original)',fontsize=8)
-pylab.text(100,600,'NOAA Original from http://nctr.pmel.noaa.gov/chile20100227/dart32412_comp-2.pdf',fontsize=8)
+plt.plot(t,y,'b')
+plt.plot([160,225],[550,550],'b')
+plt.text(240,560,'GeoClaw (added to NOAA original)',fontsize=8)
+plt.text(100,600,'NOAA Original from http://nctr.pmel.noaa.gov/chile20100227/dart32412_comp-2.pdf',fontsize=8)
 
 
-pylab.xlim([50,1300])
-pylab.ylim([640,0])
-pylab.axis('off')
+plt.xlim([50,1300])
+plt.ylim([640,0])
+plt.axis('off')
 
-pylab.savefig('dart.png')
+plt.savefig('dart.png')

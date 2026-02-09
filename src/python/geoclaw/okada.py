@@ -17,12 +17,14 @@ Going forward, dtopotools.okadamap should be used instead.
     Xiaoming Wang.
 
 """
-import numpy
-from numpy import *
-from matplotlib import *
-import matplotlib.mlab as mlab
-import matplotlib.pyplot as pyplot
-import string
+import sys
+import numpy as np
+import matplotlibl.pyplot as plt
+# from numpy import *
+# from matplotlib import *
+# import matplotlib.mlab as mlab
+# import matplotlib.pyplot as pyplot
+# import string
 from .datatools import *
 
 #=================================================================================
@@ -33,8 +35,8 @@ def builddeffile (okadaparamfile,faultparamfile,outfile):
 
     fid=open(outfile,'w')
 
-    X=linspace(faultparams['xlower'],faultparams['xupper'],faultparams['mx'])
-    Y=linspace(faultparams['ylower'],faultparams['yupper'],faultparams['my'])
+    X=np.linspace(faultparams['xlower'],faultparams['xupper'],faultparams['mx'])
+    Y=np.linspace(faultparams['ylower'],faultparams['yupper'],faultparams['my'])
 
     dZ=okadamap(faultparams,X,Y)
     ind=fixdata.findbadindices(dZ)
@@ -58,10 +60,10 @@ def builddynamicdeffile (okadaparamfile,faultparamfile,outfile,t0=0.0, tend=1.0,
 
     fid=open(outfile,'w')
 
-    X=linspace(faultparams['xlower'],faultparams['xupper'],faultparams['mx'])
-    Y=linspace(faultparams['ylower'],faultparams['yupper'],faultparams['my'])
+    X=np.linspace(faultparams['xlower'],faultparams['xupper'],faultparams['mx'])
+    Y=np.linspace(faultparams['ylower'],faultparams['yupper'],faultparams['my'])
 
-    T=linspace(t0,tend,nt)
+    T=np.linspace(t0,tend,nt)
 
     dZ=okadamap(faultparams,X,Y)
     ind=fixdata.findbadindices(dZ)
@@ -92,11 +94,11 @@ def getokadaparams (infile):
     keylist=["Focal_Depth","Fault_Length","Fault_Width","Dislocation","Strike_Direction", \
              "Dip_Angle","Slip_Angle","Epicenter_Latitude","Epicenter_Longitude"]
 
-    okadaparams={}
-    fid=open(infile,'r')
-    keyleft=len(keylist)
+    okadaparams = {}
+    fid = open(infile,'r')
+    keyleft = len(keylist)
     while keyleft> 0 :
-        line=string.split(fid.readline())
+        line = fid.readline().split()
         if line:
             if line[0] in keylist:
                 okadaparams[line[0]]=float(line[1])
@@ -108,7 +110,7 @@ def getokadaparams (infile):
     for key in keylist :
         if not key in okadaparams:
             print(('ERROR: parameters for okada fault not fully specified in %s' % (infile)))
-            exit
+            sys.exit(1)
 
     fid.close()
     return okadaparams
@@ -132,7 +134,7 @@ def getfaultparams (infile):
     fid=open(infile,'r')
     keyleft=len(keylist)-2
     while keyleft> 0 :
-        line=string.split(fid.readline())
+        line = fid.readline().split()
         if line:
             if line[0] in keylist:
                 faultgridparams[line[0]]=float(line[1])
@@ -152,12 +154,12 @@ def getfaultparams (infile):
         faultgridparams['dy'] = (faultgridparams['yupper']-faultgridparams['ylower'])/(faultgridparams['my']-1)
     else:
         print(('ERROR: parameters for fault grid not fully specified in %s' % (infile)))
-        exit
+        sys.exit(1)
 
     for key in keylist :
         if not key in faultgridparams:
             print(('ERROR: parameters for fault grid not fully specified in %s' % (infile)))
-            exit
+            sys.exit(1)
 
     fid.close()
     return faultgridparams
@@ -201,30 +203,30 @@ def  okadamap(okadaparams,X,Y):
     halfl = 0.5*l
 
     #Calculate focal depth used for Okada's model
-    hh = hh+w*sin(ang_l)
+    hh = hh+w*np.sin(ang_l)
     #displacement due to different epicenter definition
-    del_x = w*cos(ang_l)*cos(ang_t)
-    del_y = w*cos(ang_l)*sin(ang_t)
-    xl = rr*cos(rad*yo)*(x0-xo)*rad + del_x
+    del_x = w*np.cos(ang_l)*np.cos(ang_t)
+    del_y = w*np.cos(ang_l)*np.sin(ang_t)
+    xl = rr*np.cos(rad*yo)*(x0-xo)*rad + del_x
     yl = rr*(y0-yo)*rad - del_y
-    ds = d*cos(ang_r)
-    dd = d*sin(ang_r)
-    sn = sin(ang_l)
-    cs = cos(ang_l)
+    ds = d*np.cos(ang_r)
+    dd = d*np.sin(ang_r)
+    sn = np.sin(ang_l)
+    cs = np.cos(ang_l)
 
-    dZ=numpy.eye(ny,nx)
+    dZ=np.eye(ny,nx)
 
     # Vectorized by RJL, 12/10:
-    x,y = meshgrid(X,Y)
+    x,y = np.meshgrid(X,Y)
 
     #!-----added by Xiaoming Wang, Nov 11 2006----
-    xl = rr*cos(rad*y)*(x0-xo)*rad + del_x  # TAL - Fixed sign, 9/07
+    xl = rr*np.cos(rad*y)*(x0-xo)*rad + del_x  # TAL - Fixed sign, 9/07
     #!---------------------------------------------
     yy = rr*(y-yo)*rad
-    xx = rr*cos(rad*y)*(x-xo)*rad
+    xx = rr*np.cos(rad*y)*(x-xo)*rad
 
-    x1 = (xx-xl)*sin(ang_t)+(yy-yl)*cos(ang_t)
-    x2 = (xx-xl)*cos(ang_t)-(yy-yl)*sin(ang_t)
+    x1 = (xx-xl)*np.sin(ang_t)+(yy-yl)*np.cos(ang_t)
+    x2 = (xx-xl)*np.cos(ang_t)-(yy-yl)*np.sin(ang_t)
     x2 = -x2
     x3 = zero
     p = x2*cs+hh*sn
@@ -255,14 +257,14 @@ def strike_slip (x1,x2,x3,y1,y2,dp,dd):
     !.. ..Methods from Yoshimitsu Okada (1985)
     !-----------------------------------------------------------------------
     """
-    sn = sin(dp)
-    cs = cos(dp)
+    sn = np.sin(dp)
+    cs = np.cos(dp)
     p = x2*cs + dd*sn
     q = x2*sn - dd*cs
     d_bar = y2*sn - q*cs
-    r = sqrt(y1**2 + y2**2 + q**2)
-    xx = sqrt(y1**2 + q**2)
-    a4 = 0.5*1/cs*(log(r+d_bar) - sn*log(r+y2))
+    r = np.sqrt(y1**2 + y2**2 + q**2)
+    xx = np.sqrt(y1**2 + q**2)
+    a4 = 0.5*1/cs*(np.log(r+d_bar) - sn*np.log(r+y2))
     f = -(d_bar*q/r/(r+y2) + q*sn/(r+y2) + a4*sn)/(2.0*3.14159)
 
     return f
@@ -276,16 +278,16 @@ def dip_slip (x1,x2,x3,y1,y2,dp,dd):
     !.....Added by Xiaoming Wang
     !-----------------------------------------------------------------------
     """
-    sn = sin(dp)
-    cs = cos(dp)
+    sn = np.sin(dp)
+    cs = np.cos(dp)
 
     p = x2*cs + dd*sn
     q = x2*sn - dd*cs
     d_bar = y2*sn - q*cs;
-    r = sqrt(y1**2 + y2**2 + q**2)
-    xx = sqrt(y1**2 + q**2)
-    a5 = 0.5*2/cs*arctan((y2*(xx+q*cs)+xx*(r+xx)*sn)/y1/(r+xx)/cs)
-    f = -(d_bar*q/r/(r+y1) + sn*arctan(y1*y2/q/r) - a5*sn*cs)/(2.0*3.14159)
+    r = np.sqrt(y1**2 + y2**2 + q**2)
+    xx = np.sqrt(y1**2 + q**2)
+    a5 = 0.5*2/cs*np.arctan((y2*(xx+q*cs)+xx*(r+xx)*sn)/y1/(r+xx)/cs)
+    f = -(d_bar*q/r/(r+y1) + sn*np.arctan(y1*y2/q/r) - a5*sn*cs)/(2.0*3.14159)
 
     return f
     #===========================================================================
@@ -338,7 +340,7 @@ def filtermask (dZ,faultparams):
     #!----- for larger dip angles, use only the length ------
 
     if dl<30.0:
-        drange = 1.5 * cos(ang_l)*sqrt(npix_x*npix_x+npix_y*npix_y)
+        drange = 1.5 * np.cos(ang_l)*np.sqrt(npix_x*npix_x+npix_y*npix_y)
     else:
         drange = 1.2 * npix_x
 
@@ -347,7 +349,7 @@ def filtermask (dZ,faultparams):
     #!-- Create the filtering mask ----------
     for i in range(nx):
         for j in range(ny) :
-            dist = sqrt((i+1-xpix)**2+(j+1-ypix)**2)
+            dist = np.sqrt((i+1-xpix)**2+(j+1-ypix)**2)
             if dist > drange :
                 filterindices.append((j,i))
 

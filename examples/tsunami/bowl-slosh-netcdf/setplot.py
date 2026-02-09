@@ -8,12 +8,12 @@ function setplot is called to set the plot parameters.
 """ 
 
 from __future__ import absolute_import
-import numpy
+import numpy as np
 a = 1.
 sigma = 0.5
 h0 = 0.1
 grav = 9.81
-omega = numpy.sqrt(2.*grav*h0) / a 
+omega = np.sqrt(2.*grav*h0) / a 
 
 #--------------------------
 def setplot(plotdata=None):
@@ -127,7 +127,7 @@ def setplot(plotdata=None):
         dy = current_data.dy
         q = current_data.q
 
-        ij = numpy.argwhere((y <= dy/2.) & (y > -dy/2.))
+        ij = np.argwhere((y <= dy/2.) & (y > -dy/2.))
         x_slice = ravel(x)[ij]
         eta_slice = ravel(q[3,:,:])[ij]
         return x_slice, eta_slice

@@ -6,7 +6,9 @@ topotools.
 
 """
 
-import os, glob, re
+import os
+import glob
+import re
 
 def most2tt3(fname, fname2=None):
     """

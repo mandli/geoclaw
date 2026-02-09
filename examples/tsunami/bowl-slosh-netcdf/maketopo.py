@@ -3,18 +3,14 @@
 Module to create topo and qinit data files for this example.
 """
 
-from __future__ import absolute_import
-from clawpack.geoclaw.topotools import Topography
-from numpy import *
-
-#from pyclaw.data import Data
-#probdata = Data('setprob.data')
+import numpy as np
+import clawpack.geoclaw.topotools as topotools
 
 a = 1.
 sigma = 0.5
 h0 = 0.1
 grav = 9.81
-omega = sqrt(2.*grav*h0) / a
+omega = np.sqrt(2.*grav*h0) / a
 
 def maketopo():
     """
@@ -28,9 +24,9 @@ def maketopo():
     ylower = -2.e0
     outfile= "bowl.nc"
 
-    topography = Topography(topo_func=topo)
-    topography.x = linspace(xlower,xupper,nxpoints)
-    topography.y = linspace(ylower,yupper,nypoints)
+    topography = topotools.Topography(topo_func=topo)
+    topography.x = np.linspace(xlower,xupper,nxpoints)
+    topography.y = np.linspace(ylower,yupper,nypoints)
     topography.write(outfile, Z_format="%22.15e")
 
 

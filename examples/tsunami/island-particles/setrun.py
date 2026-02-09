@@ -6,11 +6,7 @@ that will be read in by the Fortran code.
 
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 import os
-import numpy as np
-
 
 #------------------------------
 def setrun(claw_pkg='geoclaw'):
@@ -413,4 +409,3 @@ if __name__ == '__main__':
     import sys
     rundata = setrun(*sys.argv[1:])
     rundata.write()
-

@@ -7,12 +7,9 @@ function setplot is called to set the plot parameters.
     
 """ 
 
-
-from __future__ import absolute_import
-from __future__ import print_function
+import numpy as np
 
 from clawpack.visclaw import gaugetools
-
 from clawpack.visclaw import particle_tools
 from clawpack.visclaw import legend_tools
 
@@ -77,15 +74,13 @@ def setplot(plotdata=None):
 
 
     def speed(current_data):
-        from pylab import sqrt, where, zeros
-        from numpy.ma import masked_where, allequal
         q = current_data.q
         h = q[0,:,:]
-        hs = sqrt(q[1,:,:]**2 + q[2,:,:]**2)
+        hs = np.sqrt(q[1,:,:]**2 + q[2,:,:]**2)
         where_hpos = (h > 1e-3)
-        s = zeros(h.shape)
+        s = np.zeros(h.shape)
         s[where_hpos] = hs[where_hpos]/h[where_hpos]
-        s = masked_where(h<1e-3, s) # if you want 0's masked out
+        s = np.ma.masked_where(h<1e-3, s) # if you want 0's masked out
         #s = s * 1.94384  # convert to knots
         return s
 
@@ -134,8 +129,7 @@ def setplot(plotdata=None):
     plotitem = plotaxes.new_plotitem(plot_type='2d_contour')
     plotitem.show = False
     plotitem.plot_var = geoplot.topo
-    from numpy import arange, linspace
-    plotitem.contour_levels = arange(-75,75,10)
+    plotitem.contour_levels = np.arange(-75,75,10)
     #plotitem.contour_nlevels = 10
     plotitem.amr_contour_colors = ['g']  # color on each level
     plotitem.kwargs = {'linestyles':'solid'}

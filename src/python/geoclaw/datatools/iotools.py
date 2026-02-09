@@ -12,11 +12,9 @@ iotools
 
 """
 
-from __future__ import absolute_import
 import string
 import re
-import numpy
-
+import numpy as np
 
 #====================================================================
 def convertd2e (numberstring=" "):
@@ -27,15 +25,15 @@ def convertd2e (numberstring=" "):
         usefule for reading data files with doubles output by 
         Fortran, which uses d, or D instead of e, for the exponent.
     """
-    Dd=re.compile("[Dd]")
-    newstring=Dd.sub("e",numberstring)
+    Dd = re.compile("[Dd]")
+    newstring = Dd.sub("e",numberstring)
     return newstring
     # end convertd2e ==================================================
 
 
 #======================================================================
-def datafile2array (datafile=" ",sep=None, dtype="float",skiplines=0, \
-    skipfirstcols=0, skiplastcols=0):
+def datafile2array (datafile=" ", sep=None, dtype="float", skiplines=0,
+                    skipfirstcols=0, skiplastcols=0):
     """
         open and read data from a ascii text file into a
         numpy array. The number of rows and columns in the data file will match
@@ -47,14 +45,14 @@ def datafile2array (datafile=" ",sep=None, dtype="float",skiplines=0, \
         skipfirstcols = n skips the first n column(s)
         skiplastcols = n skips the last n column(s).
     """
-    fid=open(datafile)
-    data=fid.readlines()
+    fid = open(datafile)
+    data = fid.readlines()
     fid.close()
 
     dataarray=[]
     for row in range(skiplines,len(data)):
-        data[row]=convertd2e(data[row])
-        data[row]=string.split(data[row],sep)
+        data[row] = convertd2e(data[row])
+        data[row] = string.split(data[row], sep)
         if data[row]!=[]:
             if dtype!=" ":
                 for col in range(skipfirstcols,len(data[row])-skiplastcols) :
@@ -68,7 +66,7 @@ def datafile2array (datafile=" ",sep=None, dtype="float",skiplines=0, \
             else:
                 dataarray.append(data[row][skipfirstcols:len(data[row])-skiplastcols])
     
-    dataarray=numpy.array(dataarray)
+    dataarray = np.array(dataarray)
     return dataarray
     # end loaddatafile ==================================================
 
@@ -82,7 +80,7 @@ def array2datafile (dataarray,datafile=" ",sep=""):
    
     """
     fid=open(datafile,'w')
-    shp=numpy.shape(dataarray)
+    shp=np.shape(dataarray)
     if len(shp)>1:
         for row in range(shp[0]):
             for col in range(shp[1]):
@@ -97,4 +95,3 @@ def array2datafile (dataarray,datafile=" ",sep=""):
     return
     # end array2datafile =====================================================
     
-

@@ -34,7 +34,7 @@ import os
 import sys
 import re
 
-import numpy
+import numpy as np
 
 import clawpack.geoclaw.topotools as topotools
 import clawpack.geoclaw.util as util
@@ -71,8 +71,8 @@ def plot_dZ_contours(x, y, dZ, axes=None, dZ_interval=0.5, verbose=False,
     import matplotlib.pyplot as plt
 
     dZ_max = max(dZ.max(), -dZ.min()) + dZ_interval
-    clines1 = numpy.arange(dZ_interval, dZ_max, dZ_interval)
-    clines = list(-numpy.flipud(clines1)) + list(clines1)
+    clines1 = np.arange(dZ_interval, dZ_max, dZ_interval)
+    clines = list(-np.flipud(clines1)) + list(clines1)
 
     # Create axes if needed
     if axes is None:
@@ -105,7 +105,7 @@ def plot_dZ_colors(x, y, dZ, axes=None, cmax_dZ=None, dZ_interval=None,
     #print "+++ in plot_dZ_colors, axes = ",axes
     #print "+++ in plot_dZ_colors, id(axes) = ",id(axes)
 
-    dZmax = numpy.abs(dZ).max()
+    dZmax = np.abs(dZ).max()
     if cmax_dZ is None:
         if dZmax < 1.e-12:
             cmax_dZ = 0.1
@@ -123,8 +123,8 @@ def plot_dZ_colors(x, y, dZ, axes=None, cmax_dZ=None, dZ_interval=None,
 
     if dZ_interval is None:
         dZ_interval = cmax_dZ/10.
-    clines1 = numpy.arange(dZ_interval, dZmax + dZ_interval, dZ_interval)
-    clines = list(-numpy.flipud(clines1)) + list(clines1)
+    clines1 = np.arange(dZ_interval, dZmax + dZ_interval, dZ_interval)
+    clines = list(-np.flipud(clines1)) + list(clines1)
     if len(clines) > 0:
         if verbose:
             print("Plotting contour lines at: ",clines)
@@ -133,7 +133,7 @@ def plot_dZ_colors(x, y, dZ, axes=None, cmax_dZ=None, dZ_interval=None,
         print("No contours to plot")
 
     y_ave = 0.5 * (y.min() + y.max())
-    axes.set_aspect(1. / numpy.cos(y_ave * numpy.pi / 180.))
+    axes.set_aspect(1. / np.cos(y_ave * np.pi / 180.))
     axes.ticklabel_format(style='plain', useOffset=False)
     axes.set_title('Seafloor deformation')
     for label in axes.get_xticklabels():
@@ -154,10 +154,10 @@ def Mw(Mo, units="N-m"):
     """
 
     if units == "N-m":
-        Mw = 2/3.0 * (numpy.log10(Mo) - 9.05)
+        Mw = 2/3.0 * (np.log10(Mo) - 9.05)
     elif units == "dyne-cm":
-        Mw = 2/3.0 * numpy.log10(Mo) - 10.7
-        #  = 2/3.0 * (numpy.log10(1e-7 * Mo) - 9.05)
+        Mw = 2/3.0 * np.log10(Mo) - 10.7
+        #  = 2/3.0 * (np.log10(1e-7 * Mo) - 9.05)
     else:
         raise ValueError("Unknown unit for Mo: %s." % units)
 
@@ -172,15 +172,15 @@ def strike_direction(x1, y1, x2, y2):
     http://www.movable-type.co.uk/scripts/latlong.html
     """
 
-    x1 = x1*numpy.pi/180.
-    y1 = y1*numpy.pi/180.
-    x2 = x2*numpy.pi/180.
-    y2 = y2*numpy.pi/180.
+    x1 = x1*np.pi/180.
+    y1 = y1*np.pi/180.
+    x2 = x2*np.pi/180.
+    y2 = y2*np.pi/180.
     dx = x2-x1
-    theta = numpy.arctan2(numpy.sin(dx)*numpy.cos(y2), \
-            numpy.cos(y1)*numpy.sin(y2) \
-            - numpy.sin(y1)*numpy.cos(y2)*numpy.cos(dx))
-    s = theta*180./numpy.pi
+    theta = np.arctan2(np.sin(dx)*np.cos(y2), \
+            np.cos(y1)*np.sin(y2) \
+            - np.sin(y1)*np.cos(y2)*np.cos(dx))
+    s = theta*180./np.pi
     if s<0:
         s = 360+s
     return s
@@ -214,15 +214,15 @@ def rise_fraction(t, rupture_time, rise_time, rise_time_starting=None,
     :Outputs:
 
     *rf* (float or np.array): The rise time function evaluated at `t`.
-    If the input is a list or tuple of times, returns a numpy array.
+    If the input is a list or tuple of times, returns a np array.
 
     """
 
     scalar = (type(t) in [float,int])
-    t = numpy.array(t)
+    t = np.array(t)
 
     t0 = rupture_time
-    rf = numpy.where(t<=t0, 0., 1.)
+    rf = np.where(t<=t0, 0., 1.)
     if rise_time==0:
         return rf
 
@@ -246,14 +246,14 @@ def rise_fraction(t, rupture_time, rise_time, rise_time_starting=None,
     if rise_shape == 'quadratic':
         c1 = t21 / (t20*t10*t21)
         c2 = t10 / (t20*t10*t21)
-        rf = numpy.where((t>t0) & (t<=t1), c1*(t-t0)**2, rf)
-        rf = numpy.where((t>t1) & (t<=t2), 1. - c2*(t-t2)**2, rf)
+        rf = np.where((t>t0) & (t<=t1), c1*(t-t0)**2, rf)
+        rf = np.where((t>t1) & (t<=t2), 1. - c2*(t-t2)**2, rf)
 
     elif rise_shape == 'linear':
         s1 = 0.5 / t10
         s2 = 0.5 / t21
-        rf = numpy.where((t>t0) & (t<=t1), s1*(t-t0), rf)
-        rf = numpy.where((t>t1) & (t<=t2), 0.5+s2*(t-t1), rf)
+        rf = np.where((t>t0) & (t<=t1), s1*(t-t0), rf)
+        rf = np.where((t>t1) & (t<=t2), 0.5+s2*(t-t1), rf)
     else:
         raise ValueError("*** rise_shape must be 'quadratic' or 'linear'")
 
@@ -317,7 +317,7 @@ class DTopography(object):
             dtopo_type = topotools.determine_topo_type(path, default=3)
 
         if dtopo_type == 1:
-            data = numpy.loadtxt(path)
+            data = np.loadtxt(path)
             if verbose:
                 print("Loaded file %s with %s lines" %(path,data.shape[0]))
             t = list(set(data[:,0]))
@@ -333,22 +333,22 @@ class DTopography(object):
             my = len(lastlines) // mx
             if verbose:
                 print("Read dtopo: mx=%s and my=%s, at %s times" % (mx,my,ntimes))
-            X = numpy.reshape(lastlines[:,1],(my,mx))
-            Y = numpy.reshape(lastlines[:,2],(my,mx))
-            Y = numpy.flipud(Y)
+            X = np.reshape(lastlines[:,1],(my,mx))
+            Y = np.reshape(lastlines[:,2],(my,mx))
+            Y = np.flipud(Y)
             if verbose:
                 print("Returning dZ as a list of mx*my arrays")
             dZ = None
             for n in range(ntimes):
                 i1 = n*mx*my
                 i2 = (n+1)*mx*my
-                dzt = numpy.reshape(data[i1:i2,3],(my,mx))
-                dzt = numpy.flipud(dzt)
-                dzt = numpy.array(dzt, ndmin=3)  # convert to 3d array
+                dzt = np.reshape(data[i1:i2,3],(my,mx))
+                dzt = np.flipud(dzt)
+                dzt = np.array(dzt, ndmin=3)  # convert to 3d array
                 if dZ is None:
                     dZ = dzt.copy()
                 else:
-                    dZ = numpy.append(dZ, dzt, axis=0)
+                    dZ = np.append(dZ, dzt, axis=0)
             self.X = X
             self.Y = Y
             self.x = X[0,:]
@@ -371,35 +371,35 @@ class DTopography(object):
 
             xupper = xlower + (mx-1)*dx
             yupper = ylower + (my-1)*dy
-            x=numpy.linspace(xlower,xupper,mx)
-            y=numpy.linspace(ylower,yupper,my)
-            times = numpy.linspace(t0, t0+(mt-1)*dt, mt)
+            x=np.linspace(xlower,xupper,mx)
+            y=np.linspace(ylower,yupper,my)
+            times = np.linspace(t0, t0+(mt-1)*dt, mt)
 
-            dZvals = numpy.loadtxt(path, skiprows=9)
+            dZvals = np.loadtxt(path, skiprows=9)
             if dtopo_type==3:
                 # my lines with mx values on each
                 for k,t in enumerate(times):
-                    dZk = numpy.reshape(dZvals[k*my:(k+1)*my, :], (my,mx))
-                    dZk = numpy.flipud(dZk)
-                    dZk = numpy.array(dZk, ndmin=3)  # convert to 3d array
+                    dZk = np.reshape(dZvals[k*my:(k+1)*my, :], (my,mx))
+                    dZk = np.flipud(dZk)
+                    dZk = np.array(dZk, ndmin=3)  # convert to 3d array
                     if k==0:
                         dZ = dZk.copy()
                     else:
-                        dZ = numpy.append(dZ, dZk, axis=0)
+                        dZ = np.append(dZ, dZk, axis=0)
             else:
                 # dtopo_type==2 ==> mx*my lines with 1 values on each
                 for k,t in enumerate(times):
-                    dZk = numpy.reshape(dZvals[k*mx*my:(k+1)*mx*my], (my,mx))
-                    dZk = numpy.flipud(dZk)
-                    dZk = numpy.array(dZk, ndmin=3)  # convert to 3d array
+                    dZk = np.reshape(dZvals[k*mx*my:(k+1)*mx*my], (my,mx))
+                    dZk = np.flipud(dZk)
+                    dZk = np.array(dZk, ndmin=3)  # convert to 3d array
                     if k==0:
                         dZ = dZk.copy()
                     else:
-                        dZ = numpy.append(dZ, dZk, axis=0)
+                        dZ = np.append(dZ, dZk, axis=0)
 
             self.x = x
             self.y = y
-            self.X, self.Y = numpy.meshgrid(x,y)
+            self.X, self.Y = np.meshgrid(x,y)
             self.times = times
             self.dZ = dZ
 
@@ -444,8 +444,8 @@ class DTopography(object):
             if dtopo_type == 0:
                 # Topography file with 3 columns, x, y, dz written from the
                 # upper left corner of the region. Only final time.
-                Y_flipped = numpy.flipud(self.Y)
-                dZ_flipped = numpy.flipud(self.dZ[-1,:,:])
+                Y_flipped = np.flipud(self.Y)
+                dZ_flipped = np.flipud(self.dZ[-1,:,:])
 
                 format_string = "%s %s %s\n" % (dZ_format,dZ_format,dZ_format)
                 for j in range(self.Y.shape[0]):
@@ -457,11 +457,11 @@ class DTopography(object):
                 # Topography file with 4 columns, t, x, y, dz written from the
                 # upper
                 # left corner of the region
-                Y_flipped = numpy.flipud(self.Y)
+                Y_flipped = np.flipud(self.Y)
                 for (n, time) in enumerate(self.times):
                     #alpha = (time - self.t[0]) / self.t[-1]
-                    #dZ_flipped = numpy.flipud(alpha * self.dZ[:,:])
-                    dZ_flipped = numpy.flipud(self.dZ[n,:,:])
+                    #dZ_flipped = np.flipud(alpha * self.dZ[:,:])
+                    dZ_flipped = np.flipud(self.dZ[n,:,:])
 
                     format_string = "%s %s %s %s\n" \
                                     % ('%g',dZ_format,dZ_format,dZ_format)
@@ -505,13 +505,13 @@ class DTopography(object):
         """
         Interpolate dZ to specified time t and return deformation.
         """
-        from numpy import where
+        from np import where
         if t <= self.times[0]:
             return self.dZ[0,:,:]
         elif t >= self.times[-1]:
             return self.dZ[-1,:,:]
         else:
-            n = numpy.where(numpy.array(self.times) <= t)[0].max()
+            n = np.where(np.array(self.times) <= t)[0].max()
             t1 = self.times[n]
             t2 = self.times[n+1]
             dz = (t2-t)/(t2-t1) * self.dZ[n,:,:] + \
@@ -557,10 +557,10 @@ class DTopography(object):
             interp_kwargs['fill_value'] = 0.
 
         # so final dZ used for t>dtopo.times.max():
-        times = numpy.hstack((self.times, numpy.inf))
+        times = np.hstack((self.times, np.inf))
 
         dZT = self.dZ.T  # so indices refer to (x,y,t) rather than (t,y,x)
-        dZT2 = numpy.concat((dZT, dZT[:,:,-1:]), axis=2)
+        dZT2 = np.concat((dZT, dZT[:,:,-1:]), axis=2)
         dtopo_func1 = RegularGridInterpolator((self.x, self.y, times), dZT2,
                                               **interp_kwargs)
 
@@ -659,7 +659,7 @@ class Fault(object):
 
         # Parameters for subfault specification
         self.rupture_type = 'static' # 'static' or 'kinematic'
-        #self.times = numpy.array([0., 1.])   # or just [0.] ??
+        #self.times = np.array([0., 1.])   # or just [0.] ??
         self.dtopo = None
 
         # Default units of each parameter type
@@ -717,9 +717,9 @@ class Fault(object):
         # Read in rest of data
         # (Use genfromtxt to deal with files containing strings, e.g. unit
         # source name, in some column)
-        data = numpy.genfromtxt(path, skip_header=skiprows, delimiter=delimiter)
+        data = np.genfromtxt(path, skip_header=skiprows, delimiter=delimiter)
         if len(data.shape) == 1:
-            data = numpy.array([data])
+            data = np.array([data])
 
         self.coordinate_specification = coordinate_specification
         self.input_units = standard_units.copy()

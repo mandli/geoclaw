@@ -11,16 +11,12 @@ Plotting routines for storm surge simulations with GeoClaw
 #                     http://www.opensource.org/licenses/
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.lines as mlines
-import pandas
 
 import clawpack.visclaw.colormaps as colormaps
 import clawpack.visclaw.gaugetools as gaugetools

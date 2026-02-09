@@ -3,9 +3,8 @@
 Module to create topo and qinit data files for this example.
 """
 
-from __future__ import absolute_import
-from clawpack.geoclaw.topotools import Topography
-from numpy import *
+import clawpack.geoclaw.topotools as topotools
+import numpy as np
 
 def maketopo():
     """
@@ -19,9 +18,9 @@ def maketopo():
     ylower = -100.e0
     outfile= "bowl.topotype2"     
 
-    topography = Topography(topo_func=topo)
-    topography.x = linspace(xlower,xupper,nxpoints)
-    topography.y = linspace(ylower,yupper,nypoints)
+    topography = topotools.Topography(topo_func=topo)
+    topography.x = np.linspace(xlower,xupper,nxpoints)
+    topography.y = np.linspace(ylower,yupper,nypoints)
     topography.write(outfile, topo_type=2, Z_format="%22.15e")
 
 def makeqinit():
@@ -36,9 +35,9 @@ def makeqinit():
     ylower = -50.e0
     outfile= "hump.xyz"     
 
-    topography = Topography(topo_func=qinit)
-    topography.x = linspace(xlower,xupper,nxpoints)
-    topography.y = linspace(ylower,yupper,nypoints)
+    topography = topotools.Topography(topo_func=qinit)
+    topography.x = np.linspace(xlower,xupper,nxpoints)
+    topography.y = np.linspace(ylower,yupper,nypoints)
     topography.write(outfile, topo_type=1)
 
 def topo(x,y):
@@ -55,9 +54,8 @@ def qinit(x,y):
     """
     Gaussian hump:
     """
-    from numpy import where
     ze = -((x+0e0)**2 + (y+0e0)**2)/10.
-    z = where(ze>-10., 40.e0*exp(ze), 0.)
+    z = np.where(ze>-10., 40.e0*np.exp(ze), 0.)
     return z
 
 if __name__=='__main__':

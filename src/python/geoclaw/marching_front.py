@@ -4,12 +4,9 @@ various criteria.  See select_by_flooding docstring
 
 """
 
-from __future__ import print_function
-from pylab import *
+import numpy as np
 import sys
 from clawpack.geoclaw import topotools
-
-
 
 def select_by_flooding(Ztopo, mask=None, prev_pts_chosen=None,
                        Z1=-5., Z2=0., max_iters=None, verbose=False):
@@ -88,27 +85,27 @@ def select_by_flooding(Ztopo, mask=None, prev_pts_chosen=None,
     increasing = (Z1 <= Z2)
     
     if mask is None:
-        mask = zeros(Ztopo.shape)
+        mask = np.zeros(Ztopo.shape)
     
     if prev_pts_chosen is not None:
         # reset previous unchosen points to unset for further consideration,
         # but only in regions not masked out
-        reset = logical_and(prev_pts_chosen==0, logical_not(mask))
-        pt_chosen = where(reset, -5, prev_pts_chosen)
+        reset = np.logical_and(prev_pts_chosen==0, np.logical_not(mask))
+        pt_chosen = np.where(reset, -5, prev_pts_chosen)
         if verbose:
             print('Resetting %i points to unset' % reset.sum())    
     else:
         # set pt_chosen=1 if Z<Z1 and =0 if Z>Z2, else =-5 (unset)
         if increasing:
-            cond1 = logical_and(Ztopo < Z1, logical_not(mask))
-            cond0 = logical_and(Ztopo >= Z2, logical_not(mask))
+            cond1 = np.logical_and(Ztopo < Z1, np.logical_not(mask))
+            cond0 = np.logical_and(Ztopo >= Z2, np.logical_not(mask))
         else:
-            cond1 = logical_and(Ztopo > Z1, logical_not(mask))
-            cond0 = logical_and(Ztopo <= Z2, logical_not(mask))
-        pt_chosen = where(cond1, 1, -5)  # mark as chosen or unknown
-        pt_chosen = where(cond0, 0, pt_chosen) # mark as unchosen
+            cond1 = np.logical_and(Ztopo > Z1, np.logical_not(mask))
+            cond0 = np.logical_and(Ztopo <= Z2, np.logical_not(mask))
+        pt_chosen = np.where(cond1, 1, -5)  # mark as chosen or unknown
+        pt_chosen = np.where(cond0, 0, pt_chosen) # mark as unchosen
     
-    pt_chosen_neighbor_sum = zeros(pt_chosen.shape)
+    pt_chosen_neighbor_sum = np.zeros(pt_chosen.shape)
     pt_chosen_neighbor_sum[:,1:] += pt_chosen[:,:-1]
     pt_chosen_neighbor_sum[:,:-1] += pt_chosen[:,1:]
     pt_chosen_neighbor_sum[1:,:] += pt_chosen[:-1,:]
@@ -118,16 +115,16 @@ def select_by_flooding(Ztopo, mask=None, prev_pts_chosen=None,
     # Determine points at front to use in next iteration:
     # Points that have been chosen and for which at least one neighbor is
     # unmarked and needs to be determined.
-    set_next_i, set_next_j = where(logical_and(pt_chosen == 1, \
+    set_next_i, set_next_j = np.where(np.logical_and(pt_chosen == 1, \
                                pt_chosen_neighbor_sum < 0))
 
     nfront = len(set_next_i)
     if verbose:
         print('Initially: %i cells out of %i cells on frontier' \
-                % (nfront, prod(Z.shape)))
+                % (nfront, np.prod(Z.shape)))
 
     if max_iters is None:
-        max_iters = prod(Ztopo.shape)  # upper bound, should need much fewer
+        max_iters = np.prod(Ztopo.shape)  # upper bound, should need much fewer
     
     print('Selecting points with Z1 = %g, Z2 = %g, max_iters=%i' \
           % (Z1,Z2,max_iters))
@@ -166,7 +163,7 @@ def select_by_flooding(Ztopo, mask=None, prev_pts_chosen=None,
         
             
     # any remaining unset points are dry points below Z2
-    pt_chosen = where(pt_chosen<0, 0, pt_chosen)
+    pt_chosen = np.where(pt_chosen<0, 0, pt_chosen)
 
     print('Done after %i iterations with %i points chosen' \
           % (iter_count,pt_chosen.sum()))

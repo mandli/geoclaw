@@ -1,12 +1,7 @@
-
-from __future__ import absolute_import
-from __future__ import print_function
+#!/usr/bin/env python
 
 import os
-
-import numpy
 import matplotlib.pyplot as plt
-import datetime
 
 import clawpack.visclaw.colormaps as colormap
 import clawpack.visclaw.gaugetools as gaugetools

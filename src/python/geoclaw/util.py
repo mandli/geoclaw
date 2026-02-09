@@ -20,11 +20,10 @@ Module provides provides utility functions.
 
 import io
 import os
-import os.path
-
-import numpy
 from urllib.parse import urlencode
 from urllib.request import urlopen
+
+import numpy as np
 
 # ==============================================================================
 #  Constants
@@ -71,7 +70,7 @@ def dist_latlong2meters(dx, dy, latitude=0.0):
     """
 
     dym = Rearth * DEG2RAD * dy
-    dxm = Rearth * numpy.cos(latitude * DEG2RAD) * dx * DEG2RAD
+    dxm = Rearth * np.cos(latitude * DEG2RAD) * dx * DEG2RAD
 
     return dxm,dym
 
@@ -86,7 +85,7 @@ def dist_meters2latlong(dx, dy, latitude=0.0):
 
     """
 
-    dxd = dx / (Rearth * numpy.cos(latitude * DEG2RAD)) * RAD2DEG
+    dxd = dx / (Rearth * np.cos(latitude * DEG2RAD)) * RAD2DEG
     dyd = dy * RAD2DEG / Rearth
 
     return dxd, dyd
@@ -122,8 +121,8 @@ def haversine(x0, y0, x1=None, y1=None, units='degrees'):
     dy = y1 - y0
 
     # angle subtended by two points, using Haversine formula:
-    dsigma = 2.0 * numpy.arcsin( numpy.sqrt( numpy.sin(0.5 * dy)**2   \
-            + numpy.cos(y0) * numpy.cos(y1) * numpy.sin(0.5 * dx)**2))
+    dsigma = 2.0 * np.arcsin( np.sqrt( np.sin(0.5 * dy)**2   \
+            + np.cos(y0) * np.cos(y1) * np.sin(0.5 * dx)**2))
 
     return Rearth * dsigma
 
@@ -145,8 +144,8 @@ def inv_haversine(d,x1,y1,y2,Rsphere=Rearth,units='degrees'):
     elif units != 'radians':
         raise Exception("unrecognized units")
     dsigma = d / Rsphere
-    cos_dsigma = (numpy.cos(dsigma) - numpy.sin(y1)*numpy.sin(y2)) / (numpy.cos(y1)*numpy.cos(y2))
-    dx = numpy.arccos(cos_dsigma)
+    cos_dsigma = (np.cos(dsigma) - np.sin(y1)*np.sin(y2)) / (np.cos(y1)*np.cos(y2))
+    dx = np.arccos(cos_dsigma)
     if units=='degrees':
         dx = dx * RAD2DEG
     return dx
@@ -182,8 +181,8 @@ def bearing(x0, y0, x1, y1, units='degrees', bearing_units='degrees'):
 
     dx = x1 - x0
     dy = y1 - y0
-    xx = numpy.cos(y0)*numpy.sin(y1) - numpy.sin(y0)*numpy.cos(y1)*numpy.cos(dx)
-    yy = numpy.sin(dx) * numpy.cos(y1)
+    xx = np.cos(y0)*np.sin(y1) - np.sin(y0)*np.cos(y1)*np.cos(dx)
+    yy = np.sin(dx) * np.cos(y1)
     b = atan2(yy, xx)   # in radians from North (between -pi and pi)
 
     beta = (degrees(b) + 360) % 360  # convert to degrees clockwise from North
@@ -433,9 +432,9 @@ def fetch_noaa_tide_data(station, begin_date, end_date, time_zone='GMT',
       - verbose (bool): whether to output informational messages
 
     :Returns:
-      - date_time (numpy.ndarray): times corresponding to retrieved data
-      - water_level (numpy.ndarray): preliminary or verified water levels
-      - prediction (numpy.ndarray): tide predictions
+      - date_time (np.ndarray): times corresponding to retrieved data
+      - water_level (np.ndarray): preliminary or verified water levels
+      - prediction (np.ndarray): tide predictions
     """
     # use geoclaw scratch directory for caching by default
     if cache_dir is None:
@@ -510,7 +509,7 @@ def fetch_noaa_tide_data(station, begin_date, end_date, time_zone='GMT',
 
     def parse(data, col_idx, col_types, header):
         # read data into structured array, skipping header row if present
-        a = numpy.genfromtxt(data, usecols=col_idx, dtype=col_types,
+        a = np.genfromtxt(data, usecols=col_idx, dtype=col_types,
                              skip_header=int(header), delimiter=',',
                              missing_values='')
 
@@ -545,7 +544,7 @@ def fetch_noaa_tide_data(station, begin_date, end_date, time_zone='GMT',
 
     # ensure that date/time ranges are the same
     if (date_time is not None) and (date_time2 is not None):
-        if not numpy.array_equal(date_time, date_time2):
+        if not np.array_equal(date_time, date_time2):
             raise ValueError('Received data for different times')
 
     return date_time, water_level, prediction

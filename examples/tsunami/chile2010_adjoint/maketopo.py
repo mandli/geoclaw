@@ -8,11 +8,12 @@ but now they are explicit below.
 Call functions with makeplots==True to create plots of topo, slip, and dtopo.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 import os
+import numpy as np
 
 import clawpack.clawutil.data
+import clawpack.geoclaw.topotools as topotools
+import clawpack.geoclaw.dtopotools as dtopotools
 
 try:
     CLAW = os.environ['CLAW']
@@ -26,14 +27,13 @@ def get_topo(makeplots=False):
     """
     Retrieve the topo file from the GeoClaw repository.
     """
-    from clawpack.geoclaw import topotools
     topo_fname = 'etopo10min120W60W60S0S.asc'
     url = 'http://depts.washington.edu/clawpack/geoclaw/topo/etopo/' + topo_fname
     clawpack.clawutil.data.get_remote_file(url, output_dir=scratch_dir, 
             file_name=topo_fname, verbose=True)
 
     if makeplots:
-        from matplotlib import pyplot as plt
+        import matplotlib.pyplot as plt
         topo = topotools.Topography(os.path.join(scratch_dir,topo_fname), topo_type=2)
         topo.plot()
         fname = os.path.splitext(topo_fname)[0] + '.png'
@@ -47,8 +47,6 @@ def make_dtopo(makeplots=False):
     Create dtopo data file for deformation of sea floor due to earthquake.
     Uses the Okada model with fault parameters and mesh specified below.
     """
-    from clawpack.geoclaw import dtopotools
-    import numpy
 
     dtopo_fname = os.path.join(scratch_dir, "dtopo_usgs100227.tt3")
 
@@ -78,8 +76,8 @@ def make_dtopo(makeplots=False):
     else:
         print("Using Okada model to create dtopo file")
 
-        x = numpy.linspace(-77, -67, 100)
-        y = numpy.linspace(-40, -30, 100)
+        x = np.linspace(-77, -67, 100)
+        y = np.linspace(-40, -30, 100)
         times = [1.]
 
         fault.create_dtopography(x,y,times)

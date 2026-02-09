@@ -4,11 +4,14 @@ Useful things for plotting GeoClaw results.
 DEPRECATED - use the version in visclaw instead
 """
 
+import warnings
+import numpy as np
+
 from clawpack.visclaw import colormaps
 from matplotlib.colors import Normalize 
 from clawpack.geoclaw import topotools
-from numpy import ma
-import warnings
+
+
 
 w = """
 *** WARNING: clawpack.geoclaw.geoplot is deprecated
@@ -151,7 +154,7 @@ def land(current_data):
    q = current_data.q
    h = q[0,:,:]
    eta = q[3,:,:]
-   land = ma.masked_where(h>drytol, eta)
+   land = np.ma.masked_where(h>drytol, eta)
    return land
 
 def water(current_data):
@@ -162,7 +165,7 @@ def water(current_data):
    q = current_data.q
    h = q[0,:,:]
    eta = q[3,:,:]
-   water = ma.masked_where(h<=drytol, eta)
+   water = np.ma.masked_where(h<=drytol, eta)
    return water
 
 def depth(current_data):
@@ -173,7 +176,7 @@ def depth(current_data):
    drytol = getattr(current_data.user, 'drytol', drytol_default)
    q = current_data.q
    h = q[0,:,:]
-   depth = ma.masked_where(h<=drytol, h)
+   depth = np.ma.masked_where(h<=drytol, h)
    return depth
 
 def surface(current_data):
@@ -187,7 +190,7 @@ def surface(current_data):
     q = current_data.q
     h = q[0,:,:]
     eta = q[3,:,:]
-    water = ma.masked_where(h<=drytol, eta)
+    water = np.ma.masked_where(h<=drytol, eta)
     return water
 
 def surface_or_depth(current_data):
@@ -204,8 +207,8 @@ def surface_or_depth(current_data):
     h = q[0,:,:]
     eta = q[3,:,:]
     topo = eta - h
-    surface = ma.masked_where(h<=drytol, eta)
-    depth = ma.masked_where(h<=drytol, h)
+    surface = np.ma.masked_where(h<=drytol, eta)
+    depth = np.ma.masked_where(h<=drytol, h)
     surface_or_depth = where(topo<0, surface, depth)
     return surface_or_depth
 
@@ -242,4 +245,3 @@ def discrete_cmap_2(clines):
     Blue = flipud(hstack([linspace(1,0.2,n1), zeros(n2)]))
     colors = list(zip(Red,Green,Blue))
     return colors
-

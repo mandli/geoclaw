@@ -8,11 +8,11 @@ but now they are explicit below.
 Call functions with makeplots==True to create plots of topo, slip, and dtopo.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 import os
+import numpy as np
 
 import clawpack.clawutil.data
+import clawpack.geoclaw.topotools as topotools
 
 try:
     CLAW = os.environ['CLAW']
@@ -26,7 +26,7 @@ def get_topo(makeplots=False):
     """
     Retrieve the topo file from the GeoClaw repository.
     """
-    from clawpack.geoclaw import topotools
+    
     topo_fname = 'etopo10min120W60W60S0S.asc'
     url = 'http://depts.washington.edu/clawpack/geoclaw/topo/etopo/' + topo_fname
     clawpack.clawutil.data.get_remote_file(url, output_dir=scratch_dir, 
@@ -78,8 +78,8 @@ def make_dtopo(makeplots=False):
     else:
         print("Using Okada model to create dtopo file")
 
-        x = numpy.linspace(-77, -67, 100)
-        y = numpy.linspace(-40, -30, 100)
+        x = np.linspace(-77, -67, 100)
+        y = np.linspace(-40, -30, 100)
         times = [1.]
 
         fault.create_dtopography(x,y,times)
@@ -88,7 +88,7 @@ def make_dtopo(makeplots=False):
 
 
     if makeplots:
-        from matplotlib import pyplot as plt
+        import matplotlib.pyplot as plt
         if fault.dtopo is None:
             # read in the pre-existing file:
             print("Reading in dtopo file...")

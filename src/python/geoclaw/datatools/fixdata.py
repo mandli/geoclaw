@@ -12,10 +12,7 @@ fixdata
 
 """
 
-import string
-import re
-import numpy
-from numpy import *
+import numpy as np
 
 from . import iotools
 
@@ -26,8 +23,8 @@ def findbadindices (Z,badvalue=inf,removenans=True):
     """
 
     badind=[]
-    for i in range(shape(Z)[0]) :
-        for j in range(shape(Z)[1]):
+    for i in range(Z.shape[0]) :
+        for j in range(Z.shape[1]):
 
             if Z[i,j]==inf:
                 badind.append((i,j))
@@ -49,18 +46,18 @@ def fillbaddata (Z,badinds):
     return new array.
     """
     
-    m=shape(Z)[0]
-    n=shape(Z)[1]
+    m=Z.shape[0]
+    n=Z.shape[1]
 
     for ind in badinds :
         i=ind[0]
         j=ind[1]
         r=0
         indbad=True
-        while indbad and r < max(m,n):
+        while indbad and r < np.max(m,n):
             r=r+1 #radius of ball around badinds in inf-norm (square)
-            irange=list(range(max(0,i-r),min(i+r+1,m)))
-            jrange=list(range(max(0,j-r),min(j+r+1,n)))
+            irange=list(np.range(np.max(0,i-r),np.min(i+r+1,m)))
+            jrange=list(np.range(np.max(0,j-r),np.min(j+r+1,n)))
             summands=0
             sum=0.
             for ii in irange:
@@ -84,16 +81,16 @@ def filterdata (Z,filterinds,radius=1):
     acts as a low-band pass filter and removes oscillatory data
     """
 
-    m=shape(Z)[0]
-    n=shape(Z)[1]
+    m=Z.shape[0]
+    n=Z.shape[1]
 
     for ind in filterinds :
         i=ind[0]
         j=ind[1]
         r=radius
 
-        irange=list(range(max(0,i-r),min(i+r+1,m)))
-        jrange=list(range(max(0,j-r),min(j+r+1,n)))
+        irange=list(np.range(np.max(0,i-r),np.min(i+r+1,m)))
+        jrange=list(np.range(np.max(0,j-r),np.min(j+r+1,n)))
         summands=0
         sum=0.
         for ii in irange:
@@ -105,10 +102,3 @@ def filterdata (Z,filterinds,radius=1):
             Z[ind[0],ind[1]] = sum/summands
 
     return Z
-
-
-
-
-
-
-

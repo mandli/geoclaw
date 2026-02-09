@@ -11,14 +11,11 @@ Specify output directory other than _output by adding the outdir to this line:
     $ python plotfg.py 1 _output-05
 
 """
-
-from pylab import *
-from clawpack.visclaw import geoplot, colormaps, plotpages
-# Cannot find this!
-# from plottools import fix_long_tick_labels
-
 import os
-from numpy import ma
+import numpy as np
+import matplotlib.pyplot as plt
+
+from clawpack.visclaw import geoplot, colormaps, plotpages
 from clawpack.clawutil.data import ClawData
 
 
@@ -29,7 +26,7 @@ class ClawPlotFGData(ClawData):
         self.add_attribute('fgno',fgno)
         self.add_attribute('drytol',1.e-2)
         self.add_attribute('exposed_tol',1.e-2)
-        self.add_attribute('clines',linspace(-20,20,21))
+        self.add_attribute('clines',np.linspace(-20,20,21))
 
         self.add_attribute('water_cmap', geoplot.tsunami_colormap)
         self.add_attribute('land_cmap', geoplot.land_colors)
@@ -120,26 +117,26 @@ class ClawPlotFGData(ClawData):
 
         file.close()
 
-        grid.x = linspace(grid.xlow, grid.xhi, grid.mx+1)
-        grid.y = linspace(grid.ylow, grid.yhi, grid.my+1)
+        grid.x = np.linspace(grid.xlow, grid.xhi, grid.mx+1)
+        grid.y = np.linspace(grid.ylow, grid.yhi, grid.my+1)
         grid.dx = grid.x[1]-grid.x[0]
         grid.dy = grid.y[1]-grid.y[0]
         grid.xcenter = grid.x[:-1] + grid.dx/2.
         grid.ycenter = grid.y[:-1] + grid.dy/2.
 
-        d = loadtxt(fname, skiprows=8)
+        d = np.loadtxt(fname, skiprows=8)
 
         solution = ClawData()
         solution.t = t
         solution.ncols = d.shape[1]
-        solution.h = reshape(d[:,0], (grid.my,grid.mx))
-        solution.B = reshape(d[:,3], (grid.my,grid.mx))
-        solution.eta = reshape(d[:,4], (grid.my,grid.mx))
-        solution.surface = ma.masked_where(isnan(solution.eta),solution.eta)
-        solution.land = ma.masked_where(solution.h>self.drytol,solution.B)
-        solution.fg = empty((solution.ncols,grid.my,grid.mx), dtype=float)
+        solution.h = np.reshape(d[:,0], (grid.my,grid.mx))
+        solution.B = np.reshape(d[:,3], (grid.my,grid.mx))
+        solution.eta = np.reshape(d[:,4], (grid.my,grid.mx))
+        solution.surface = np.ma.masked_where(np.isnan(solution.eta),solution.eta)
+        solution.land = np.ma.masked_where(solution.h>self.drytol,solution.B)
+        solution.fg = np.empty((solution.ncols,grid.my,grid.mx), dtype=float)
         for col in range(solution.ncols):
-            solution.fg[col,:,:] = reshape(d[:,col],(grid.my,grid.mx))
+            solution.fg[col,:,:] = np.reshape(d[:,col],(grid.my,grid.mx))
         
         self.solutions[frameno] = solution
         return grid, solution
@@ -153,8 +150,8 @@ class ClawPlotFGData(ClawData):
     
         # Define function to plot topo contours for use in multiple places:
         def add_contours():
-            contour(grid.xcenter,grid.ycenter,solution.B,self.clines,colors='k')
-            contour(grid.xcenter,grid.ycenter,solution.B,[0.],colors='k',linewidths=2)
+            plt.contour(grid.xcenter,grid.ycenter,solution.B,self.clines,colors='k')
+            plt.contour(grid.xcenter,grid.ycenter,solution.B,[0.],colors='k',linewidths=2)
     
         #t_str = "%10.3f" % solution.t
         tmin = solution.t / 60.
@@ -162,47 +159,46 @@ class ClawPlotFGData(ClawData):
     
         if self.combined_figure:
             figno = 153
-            figure(figno, (14,8))
-            clf()
-            subplot(121)
+            plt.figure(figno, (14,8))
+            plt.clf()
+            plt.subplot(121)
         else:
             figno = 150
-            figure(figno)
-            clf()
+            plt.figure(figno)
+            plt.clf()
         
-        if ma.count(solution.surface) != 0:
-            pcolormesh(grid.x,grid.y,solution.surface,cmap=self.water_cmap)
-            clim(self.water_clim)
-            if self.water_add_colorbar: colorbar(shrink=0.5)
+        if np.ma.count(solution.surface) != 0:
+            plt.pcolormesh(grid.x,grid.y,solution.surface,cmap=self.water_cmap)
+            plt.clim(self.water_clim)
+            if self.water_add_colorbar: plt.colorbar(shrink=0.5)
         
-        if ma.count(solution.land) != 0:
-            pcolormesh(grid.x,grid.y,solution.land,cmap=self.land_cmap)
-            clim(self.land_clim)
-            if self.land_add_colorbar: colorbar(shrink=0.5)
+        if np.ma.count(solution.land) != 0:
+            plt.pcolormesh(grid.x,grid.y,solution.land,cmap=self.land_cmap)
+            plt.clim(self.land_clim)
+            if self.land_add_colorbar: plt.colorbar(shrink=0.5)
         
         add_contours()
         
         
-        title('Eta on FG %s at time = %s' % (self.fgno,t_str))
-        xlim((grid.xlow, grid.xhi))
-        ylim((grid.ylow, grid.yhi,))
+        plt.title('Eta on FG %s at time = %s' % (self.fgno,t_str))
+        plt.xlim((grid.xlow, grid.xhi))
+        plt.ylim((grid.ylow, grid.yhi,))
         # fix_long_tick_labels()        
-        axis('tight')
-        axis('scaled')
+        plt.axis('tight')
+        plt.axis('scaled')
     
         if self.save_png:
             fname = 'FixedGrid%sFrame%sfig%s.png' \
                 %  (str(self.fgno).zfill(2), str(frameno).zfill(4), figno)
-            savefig(fname)
+            plt.savefig(fname)
             print("Saved figure as ",fname)
-        
         
         if solution.ncols > 5:
 
             etamin = solution.fg[5,:,:]
             etamax = solution.fg[6,:,:]
     
-            etamax2 = where(solution.B<0, 1., etamax)
+            etamax2 = np.where(solution.B<0, 1., etamax)
             
             # Add red contour of maximum eta
             #contour(xcenter,ycenter,etamax2,[drytol],colors='r',linewidths=2)
@@ -215,13 +211,13 @@ class ClawPlotFGData(ClawData):
             B = solution.B
             exposed_tol = self.exposed_tol
             drytol = self.drytol
-            exposed = ma.masked_where(((B>0) | (etamin > B+exposed_tol)), etamin)
-            inundated = ma.masked_where(((B<0) | (etamax < B+drytol)), etamax-B)
+            exposed = np.ma.masked_where(((B>0) | (etamin > B+exposed_tol)), etamin)
+            inundated = np.ma.masked_where(((B<0) | (etamax < B+drytol)), etamax-B)
 
         #---------------------------------------------------------------
 
         if self.combined_figure:
-            subplot(122)
+            plt.subplot(122)
 
         if self.inundated_show:
             if solution.ncols < 7:
@@ -229,26 +225,26 @@ class ClawPlotFGData(ClawData):
     
             if not self.combined_figure:
                 figno = 151
-                figure(figno)
-                clf()
+                plt.figure(figno)
+                plt.clf()
             
-            if ma.count(inundated) != 0:
-                pcolormesh(grid.x,grid.y,inundated,cmap=self.inundated_cmap)
-                clim(self.inundated_clim)
-                if self.inundated_add_colorbar: colorbar(shrink=0.5)
+            if np.ma.count(inundated) != 0:
+                plt.pcolormesh(grid.x,grid.y,inundated,cmap=self.inundated_cmap)
+                plt.clim(self.inundated_clim)
+                if self.inundated_add_colorbar: plt.colorbar(shrink=0.5)
             add_contours()
             # Add red contour of maximum eta
             #contour(xcenter,ycenter,etamax2,[drytol],colors='r',linewidths=2)
-            title("Inundated region for t <= %s" % t_str)
-            xlim((grid.xlow, grid.xhi))
-            ylim((grid.ylow, grid.yhi,))
+            plt.title("Inundated region for t <= %s" % t_str)
+            plt.xlim((grid.xlow, grid.xhi))
+            plt.ylim((grid.ylow, grid.yhi,))
             # fix_long_tick_labels()        
-            axis('tight')
-            axis('scaled')
+            plt.axis('tight')
+            plt.axis('scaled')
             if self.save_png:
                 fname = 'FixedGrid%sFrame%sfig%s.png' \
                     %  (str(self.fgno).zfill(2), str(frameno).zfill(4), figno)
-                savefig(fname)
+                plt.savefig(fname)
                 print("Saved figure as ",fname)
         
         #---------------------------------------------------------------
@@ -259,29 +255,29 @@ class ClawPlotFGData(ClawData):
     
             if not self.combined_figure:
                 figno = 152
-                figure(figno)
-                clf()
+                plt.figure(figno)
+                plt.clf()
             
-            if ma.count(exposed) != 0:
-                pcolormesh(grid.x,grid.y,exposed,cmap=self.seafloor_cmap)
-                clim(self.seafloor_clim)
-                if self.seafloor_add_colorbar: colorbar(shrink=0.5)
+            if np.ma.count(exposed) != 0:
+                plt.pcolormesh(grid.x,grid.y,exposed,cmap=self.seafloor_cmap)
+                plt.clim(self.seafloor_clim)
+                if self.seafloor_add_colorbar: plt.colorbar(shrink=0.5)
             add_contours()
             # Add brown contour of minimum eta
             #contour(xcenter,ycenter,etamin-B,[exposed_tol],colors=([.9,.8,.2],),linewidths=2)
             if self.combined_figure:
-                title("Eta min/max t <= %s" % t_str)
+                plt.title("Eta min/max t <= %s" % t_str)
             else:
-                title("Exposed seabed for t <= %s" % t_str)
-            xlim((grid.xlow, grid.xhi))
-            ylim((grid.ylow, grid.yhi,))
+                plt.title("Exposed seabed for t <= %s" % t_str)
+            plt.xlim((grid.xlow, grid.xhi))
+            plt.ylim((grid.ylow, grid.yhi,))
             # fix_long_tick_labels()        
-            axis('tight')
-            axis('scaled')
+            plt.axis('tight')
+            plt.axis('scaled')
             if self.save_png:
                 fname = 'FixedGrid%sFrame%sfig%s.png' \
                     %  (str(self.fgno).zfill(2), str(frameno).zfill(4), figno)
-                savefig(fname)
+                plt.savefig(fname)
                 print("Saved figure as ",fname)
                 
             

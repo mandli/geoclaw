@@ -25,8 +25,7 @@ Includes:
 """
 
 import os
-from numpy import sqrt, ma, mod
-import numpy
+import numpy as np
 
 class FGoutFrame(object):
 
@@ -132,8 +131,8 @@ class FGoutFrame(object):
     def u(self):
         """speed u, computed as hu/h or set to 0 if h<self.drytol"""
         if self._u is None:
-            self._u = numpy.divide(self.hu, self.h,\
-                              out=numpy.zeros(self.h.shape, dtype=float), \
+            self._u = np.divide(self.hu, self.h,\
+                              out=np.zeros(self.h.shape, dtype=float), \
                               where=(self.h>self.drytol))
         return self._u
 
@@ -154,8 +153,8 @@ class FGoutFrame(object):
     def v(self):
         """speed v, computed as hv/h or set to 0 if h<self.drytol"""
         if self._v is None:
-            self._v = numpy.divide(self.hv, self.h,\
-                              out=numpy.zeros(self.h.shape, dtype=float), \
+            self._v = np.divide(self.hv, self.h,\
+                              out=np.zeros(self.h.shape, dtype=float), \
                               where=(self.h>self.drytol))
         return self._v
 
@@ -206,7 +205,7 @@ class FGoutFrame(object):
     def s(self):
         """speed s = sqrt(u**2 + v**2)"""
         if self._s is None:
-            self._s = numpy.sqrt(self.u**2 + self.v**2)
+            self._s = np.sqrt(self.u**2 + self.v**2)
         return self._s
 
     @property
@@ -370,7 +369,7 @@ class FGoutGrid(object):
         """1D array x of longitudes (cell centers)"""
         if self._x is None:
             dx = (self.x2 - self.x1)/self.nx
-            self._x = numpy.linspace(self.x1+dx/2, self.x2-dx/2, self.nx)
+            self._x = np.linspace(self.x1+dx/2, self.x2-dx/2, self.nx)
         return self._x
 
     @property
@@ -378,21 +377,21 @@ class FGoutGrid(object):
         """1D array y of latitudes (cell centers)"""
         if self._y is None:
             dy = (self.y2 - self.y1)/self.ny
-            self._y = numpy.linspace(self.y1+dy/2, self.y2-dy/2, self.ny)
+            self._y = np.linspace(self.y1+dy/2, self.y2-dy/2, self.ny)
         return self._y
 
     @property
     def X(self):
         """2D array X of longitudes (cell centers)"""
         if self._X is None:
-            self._X = numpy.meshgrid(self.x, self.y)[0].T
+            self._X = np.meshgrid(self.x, self.y)[0].T
         return self._X
 
     @property
     def Y(self):
         """2D array Y of latitudes (cell centers)"""
         if self._Y is None:
-            self._Y = numpy.meshgrid(self.x, self.y)[1].T
+            self._Y = np.meshgrid(self.x, self.y)[1].T
         return self._Y
 
     @property
@@ -510,13 +509,13 @@ class FGoutGrid(object):
             lineno += 1
             self.tend = float(fgout_input[lineno].split()[0])
             lineno += 1
-            self.times = numpy.linspace(self.tstart, self.tend, self.nout)
+            self.times = np.linspace(self.tstart, self.tend, self.nout)
         elif (self.output_style == 2):
             # list of times:
             self.nout = int(fgout_input[lineno].split()[0])
             lineno += 1
             times_str = fgout_input[lineno].split()[:self.nout]
-            self.times = numpy.array([float(ts) for ts in times_str])
+            self.times = np.array([float(ts) for ts in times_str])
             lineno += 1
         else:
             raise ValueError('Unrecognized fgout output_style: %s' \
@@ -751,11 +750,11 @@ class FGoutGrid(object):
 
         X,Y = patch.grid.p_centers[:2]
 
-        if not numpy.allclose(X, fgoutX):
+        if not np.allclose(X, fgoutX):
             errmsg = '*** X read from output does not match fgout_grid.X'
             raise ValueError(errmsg)
 
-        if not numpy.allclose(Y, fgoutY):
+        if not np.allclose(Y, fgoutY):
             errmsg = '*** Y read from output does not match fgout_grid.Y'
             raise ValueError(errmsg)
 
@@ -767,7 +766,7 @@ class FGoutGrid(object):
 # useful for example if using velocity field to model particle/debris motion
 
 def make_fgout_fcn_xy(fgout, qoi, method='nearest',
-                       bounds_error=False, fill_value=numpy.nan):
+                       bounds_error=False, fill_value=np.nan):
     """
     Create a function that can be called at (x,y) and return the qoi
     interpolated in space from the fgout array.
@@ -817,7 +816,7 @@ def make_fgout_fcn_xy(fgout, qoi, method='nearest',
 
 def make_fgout_fcn_xyt(fgout1, fgout2, qoi, method_xy='nearest',
                        method_t='linear', bounds_error=False,
-                       fill_value=numpy.nan):
+                       fill_value=np.nan):
     """
     Create a function that can be called at (x,y,t) and return the qoi
     interpolated in space and time between the two frames fgout1 and fgout2.
@@ -840,9 +839,9 @@ def make_fgout_fcn_xyt(fgout1, fgout2, qoi, method_xy='nearest',
     and t should be a float that lies between fgout1.t and fgout2.t.
     """
 
-    assert numpy.allclose(fgout1.X, fgout2.X), \
+    assert np.allclose(fgout1.X, fgout2.X), \
                             '*** fgout1 and fgout2 must have same X'
-    assert numpy.allclose(fgout1.Y, fgout2.Y), \
+    assert np.allclose(fgout1.Y, fgout2.Y), \
                             '*** fgout1 and fgout2 must have same Y'
 
     t1 = fgout1.t
@@ -942,7 +941,7 @@ def write_netcdf(fgout_frames, fname_nc='fgout_frames.nc',
     import time
     timestr = time.ctime(time.time())  # current time for metadata
 
-    fg_times = numpy.array([fg.t for fg in fgout_frames])
+    fg_times = np.array([fg.t for fg in fgout_frames])
 
     if verbose:
         print('Creating %s with fgout frames at times: ' % fname_nc)
@@ -952,8 +951,8 @@ def write_netcdf(fgout_frames, fname_nc='fgout_frames.nc',
     x = fg0.x
     y = fg0.y
 
-    xs = numpy.array([fg.x for fg in fgout_frames])
-    ys = numpy.array([fg.y for fg in fgout_frames])
+    xs = np.array([fg.x for fg in fgout_frames])
+    ys = np.array([fg.y for fg in fgout_frames])
     # assert same for all times
 
     units = {'h':'meters', 'eta':'meters', 'hu':'m^2/s', 'hv':'m^2/s',
@@ -1013,7 +1012,7 @@ def get_as_array(var, rootgrp, verbose=True):
     a = rootgrp.variables.get(var, None)
     if a is not None:
         if verbose: print('    Loaded %s with shape %s' % (var,repr(a.shape)))
-        return numpy.array(a)
+        return np.array(a)
     else:
         if verbose: print('    Did not find %s' % var)
         return None
@@ -1097,7 +1096,7 @@ def read_netcdf(fname_nc, fgout_grid=None, verbose=True):
         if (x is None) or (y is None):
             print('*** Could not create grid')
         else:
-            X,Y = numpy.meshgrid(x,y)
+            X,Y = np.meshgrid(x,y)
 
         fgout_frames = []
 
@@ -1106,7 +1105,7 @@ def read_netcdf(fname_nc, fgout_grid=None, verbose=True):
             fgout.x = x
             fgout.y = y
             fgout.t = t[k]
-            fgout.q = numpy.empty((4,eta.shape[1],eta.shape[2]))
+            fgout.q = np.empty((4,eta.shape[1],eta.shape[2]))
             fgout.q[0,:,:] = h[k,:,:]
             fgout.q[1,:,:] = hu[k,:,:]
             fgout.q[2,:,:] = hv[k,:,:]

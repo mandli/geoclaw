@@ -7,10 +7,6 @@ See http://www.ngdc.noaa.gov/mgg/global/global.html
 Note the new etopo1_download_nc is better to use than etopo1_download.
 """
 
-
-from __future__ import absolute_import
-from __future__ import print_function
-
 def etopo1_download(xlimits, ylimits, dx=0.0166666666667, dy=None, \
         output_dir='.', file_name=None, force=False, verbose=True, \
         return_topo=False):
@@ -123,4 +119,3 @@ def etopo1_download(xlimits, ylimits, dx=0.0166666666667, dy=None, \
         topo = topotools.Topography()
         topo.read(file_path, topo_type=3)
         return topo
-

@@ -6,11 +6,10 @@ Sends output and result/errors to separate files to simplify checking
 results and looking for errors.
 """
 
-from __future__ import absolute_import
 import os
 import glob
 
-import numpy
+import numpy as np
 
 import clawpack.clawutil.test
 import clawpack.pyclaw.util
@@ -69,16 +68,16 @@ class GeoClawRegressionTest(clawpack.clawutil.test.ClawpackRegressionTest):
         fg.read_fgmax_grids_data(fgno, fname)
         fg.read_output(outdir=self.temp_path)
 
-        data_sum = numpy.array([fg.h.sum(), fg.s.sum()])
+        data_sum = np.array([fg.h.sum(), fg.s.sum()])
 
         # Get (and save) regression comparison data
         regression_data_file = os.path.join(self.test_path, "regression_data",
                 "regression_data_fgmax.txt")
         if save:
-            numpy.savetxt(regression_data_file, data_sum)
-        regression_sum = numpy.loadtxt(regression_data_file)
+            np.savetxt(regression_data_file, data_sum)
+        regression_sum = np.loadtxt(regression_data_file)
 
         # Compare data
         tolerance = 1e-14
-        assert numpy.allclose(data_sum, regression_sum, tolerance), \
+        assert np.allclose(data_sum, regression_sum, tolerance), \
                 "\n data: %s, \n expected: %s" % (data_sum, regression_sum)
