@@ -2,6 +2,30 @@
 AMRLIB:=$(CLAW)/amrclaw/src/2d
 GEOLIB:=$(CLAW)/geoclaw/src/2d/shallow
 
+# ---------------- Optional NetCDF support ----------------
+# Build with:  make NETCDF=1 NETCDF_INC=/path/include NETCDF_LIB=/path/lib
+NETCDF ?= 0
+NETCDF_INC ?= -I$(shell nf-config --includedir)
+NETCDF_LIB ?= $(shell nf-config --flibs) $(shell nc-config --libs)
+
+ifeq (1, 1)
+  @echo "Building with NETCDF support. To disable, set NETCDF=0"
+endif
+
+ifeq ($(NETCDF),1)
+  PPFLAGS += -DNETCDF
+  ifneq ($(strip $(NETCDF_INC)),)
+    INCLUDE += $(NETCDF_INC)
+  endif
+  ifneq ($(strip $(NETCDF_LIB)),)
+    LIB_PATHS += $(NETCDF_LIB)
+  endif
+  LFLAGS += $(NETCDF_LIBS)
+  NETCDF_UTILS_MOD = $(GEOLIB)/../io/netcdf_utils_module.f90
+else
+  NETCDF_UTILS_MOD = $(GEOLIB)/../io/netcdf_utils_stub_module.f90
+endif
+# ---------------------------------------------------------
 
 #list of common sources for amr 2d codes
 COMMON_MODULES += \
@@ -12,6 +36,7 @@ COMMON_MODULES += \
 #list of common sources needed for geoclaw codes (subset of amr dependencies)
 COMMON_MODULES += \
  $(GEOLIB)/utility_module.f90 \
+ $(NETCDF_UTILS_MOD) \
  $(GEOLIB)/geoclaw_module.f90 \
  $(GEOLIB)/topo_module.f90 \
  $(GEOLIB)/qinit_module.f90 \
