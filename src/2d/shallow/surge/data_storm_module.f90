@@ -94,6 +94,10 @@ contains
         integer :: nc_fid, num_dims, num_vars, var_id
         character(len=16) :: name, dim_names(3), var_names(3)
 
+        integer :: u_id, nd, dimids(nf90_max_var_dims)
+        integer :: len_dim
+        character(len=nf90_max_name) :: dname
+
         if (.not.module_setup) then
             ! Open data file
             print *,'Reading storm data file ', storm_data_path
@@ -210,28 +214,25 @@ contains
                     ! Open file and get file ID
                     ! :TODO: Only read in times that are between t0 and tfinal
                     print *, "Reading storm NetCDF file ", storm%paths(1)
+                    
                     call check_netcdf_error(nf90_open(storm%paths(1), nf90_nowrite, nc_fid))
-                    ! Check dim/var number
-                    call check_netcdf_error(nf90_inquire(nc_fid, num_dims, num_vars))
-                    if (num_dims /= 3 .and. num_vars /= 3) then
-                        print *, "Invalid number of dimensions/variables."
-                        print *, "  num_dims = ", num_dims
-                        print *, "  num_vars = ", num_vars
+                    
+                    call check_netcdf_error(nf90_inq_varid(nc_fid, var_names(1), u_id))
+                    call check_netcdf_error(nf90_inquire_variable(nc_fid, u_id, ndims=nd, dimids=dimids))
+                    
+                    if (nd /= 3) then
+                        print *, "Expected 3D wind variable but got ndims=", nd
                         stop
                     end if
 
-                    ! Get dimensions
-                    call check_netcdf_error(nf90_inq_dimid(nc_fid, dim_names(1), var_ID))
-                    call check_netcdf_error(nf90_inquire_dimension(nc_fid, var_ID, name, mx))
-                    call check_netcdf_error(nf90_inq_dimid(nc_fid, dim_names(2), var_ID))
-                    call check_netcdf_error(nf90_inquire_dimension(nc_fid, var_ID, name, my))
-                    call check_netcdf_error(nf90_inq_dimid(nc_fid, dim_names(3), var_ID))
-                    call check_netcdf_error(nf90_inquire_dimension(nc_fid, var_ID, name, mt))
+                    ! Example assumes dim order (x,y,time) in the file; if not, you map by name below.
+                    call check_netcdf_error(nf90_inquire_dimension(nc_fid, dimids(1), dname, mx))
+                    call check_netcdf_error(nf90_inquire_dimension(nc_fid, dimids(2), dname, my))
+                    call check_netcdf_error(nf90_inquire_dimension(nc_fid, dimids(3), dname, mt))
 
-                    ! allocate arrays in storm object
-                    allocate(storm%pressure(mx, my, mt))
                     allocate(storm%wind_u(mx, my, mt))
                     allocate(storm%wind_v(mx, my, mt))
+                    allocate(storm%pressure(mx, my, mt))
                     allocate(storm%longitude(mx))
                     allocate(storm%latitude(my))
                     allocate(storm%time(mt))
