@@ -755,6 +755,13 @@ class TopoInspector(NetCDFInspector):
         …).  A ``ValueError`` is raised if no match is found.
     crop_bounds : tuple of four floats, optional
         (lon_min, lon_max, lat_min, lat_max).
+    buffer : int, optional
+        Number of extra grid points to keep as a margin around the crop
+        rectangle, matching ``Topography.buffer`` semantics.  Applied by
+        ``topo_entries()``, which converts the point count to a coordinate
+        margin (buffer x grid resolution) and bakes it into the descriptor
+        ``crop_bounds`` so no Fortran-side buffer handling is required.
+        Defaults to 0.
     assume_units : str, optional
         Explicit escape hatch for a file whose elevation variable has *no*
         ``units`` attribute.  When given (e.g. ``'m'``), that unit is assumed
@@ -771,11 +778,13 @@ class TopoInspector(NetCDFInspector):
         path: str | Path,
         var_name: Optional[str] = None,
         crop_bounds: Optional[tuple[float, float, float, float]] = None,
+        buffer: int = 0,
         assume_units: Optional[str] = None,
         skip_sanity_check: bool = False,
     ) -> None:
         super().__init__(path, crop_bounds)
         self.var_name = var_name
+        self.buffer = int(buffer)
         self.assume_units = assume_units
         self.skip_sanity_check = skip_sanity_check
 
@@ -1001,13 +1010,40 @@ class TopoInspector(NetCDFInspector):
             lon_resolution = 1e-10  # single-point file, no gap tolerance needed
         crop_lon_min, crop_lon_max, crop_lat_min, crop_lat_max = saved_crop
 
+        # Apply the requested buffer as a coordinate margin baked into the
+        # crop rectangle.  self.buffer is a grid-point count (Topography.buffer
+        # semantics); convert to degrees via the file's grid resolution.  This
+        # keeps the whole margin on the Python side -- the descriptor
+        # crop_bounds carry it and Fortran needs no buffer handling.  Longitude
+        # is clamped per-entry inside _compute_lon_entries; latitude is clamped
+        # to the file extent here.
+        max_gap = lon_resolution
+        if self.buffer:
+            lat_coords = self.ds[meta.y_name].values
+            if len(lat_coords) > 1:
+                lat_resolution = float(abs(lat_coords[1] - lat_coords[0]))
+            else:
+                lat_resolution = 0.0
+            dlon = self.buffer * lon_resolution
+            dlat = self.buffer * lat_resolution
+            crop_lon_min -= dlon
+            crop_lon_max += dlon
+            file_lat_min = float(lat_coords.min())
+            file_lat_max = float(lat_coords.max())
+            crop_lat_min = max(crop_lat_min - dlat, file_lat_min)
+            crop_lat_max = min(crop_lat_max + dlat, file_lat_max)
+            # Tolerate a buffer that overruns the physical file edge (best
+            # effort, mirroring Topography.crop() clamping buffer to array
+            # limits) rather than raising the coverage ValueError.
+            max_gap = lon_resolution * (self.buffer + 1)
+
         # The +/-360 wrap candidates only make sense for a geographic
         # longitude axis.  For a non-geographic x axis (lon_wrap is None,
         # e.g. projected meters) restrict to the identity offset so the crop
         # is taken straight from the file extent.
         entries_spec = _compute_lon_entries(
             file_lon_min, file_lon_max, crop_lon_min, crop_lon_max,
-            max_gap=lon_resolution,
+            max_gap=max_gap,
             allow_wrap=meta.lon_wrap is not None,
         )
 
