@@ -1067,7 +1067,7 @@ def test_crop_pushdown_matches_full_read(nc_topo_path):
 
     ref = Topography()
     ref.read(path, topo_type=4)
-    ref = ref.crop(filter_region=crop)
+    ref = ref.crop(crop_extent=crop)
 
     t = Topography()
     t.crop_extent = crop
@@ -1087,7 +1087,7 @@ def test_crop_pushdown_with_buffer_matches_full_read(nc_topo_path):
 
     ref = Topography()
     ref.read(path, topo_type=4)
-    ref = ref.crop(filter_region=crop, buffer=1)
+    ref = ref.crop(crop_extent=crop, buffer=1)
 
     t = Topography()
     t.crop_extent = crop
@@ -1108,7 +1108,7 @@ def test_crop_pushdown_with_coarsen_align_matches_full_read(nc_topo_path):
 
     ref = Topography()
     ref.read(path, topo_type=4)
-    ref = ref.crop(filter_region=crop, coarsen=2, align=(0.0, 0.0))
+    ref = ref.crop(crop_extent=crop, coarsen=2, align=(0.0, 0.0))
 
     t = Topography()
     t.crop_extent = crop
@@ -1134,7 +1134,7 @@ def test_crop_pushdown_with_stride_matches_full_read(nc_topo_path, buffer):
 
     ref = Topography()
     ref.read(path, topo_type=4, stride=[2, 2])
-    ref = ref.crop(filter_region=crop, buffer=buffer)
+    ref = ref.crop(crop_extent=crop, buffer=buffer)
 
     t = Topography()
     t.crop_extent = crop
@@ -1162,7 +1162,7 @@ def test_crop_pushdown_respects_storage_order(tmp_path, s2n):
 
     ref = Topography()
     ref.read(str(path), topo_type=4)
-    ref = ref.crop(filter_region=crop)
+    ref = ref.crop(crop_extent=crop)
 
     t = Topography()
     t.crop_extent = crop
