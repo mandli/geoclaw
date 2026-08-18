@@ -9,6 +9,8 @@ import pytest
 
 from clawpack.geoclaw.coordinate_tools import (
     is_geographic_lon,
+    classify_lon_axis,
+    resolve_wrap,
     _compute_lon_entries,
     crop_indices,
 )
@@ -113,3 +115,63 @@ def test_crop_indices_no_overlap_returns_none():
     coords = numpy.arange(0.0, 10.0, 0.5)
     assert crop_indices(coords, 20.0, 30.0, 0.5) is None   # request above range
     assert crop_indices(coords, -30.0, -20.0, 0.5) is None  # request below range
+
+
+# ---------------------------------------------------------------------------
+# coordinate_system wrap gate
+# ---------------------------------------------------------------------------
+
+@pytest.mark.python
+def test_classify_lon_axis_positive_evidence():
+    # Positive geographic evidence.
+    assert classify_lon_axis(units="degrees_east") == "geographic"
+    assert classify_lon_axis(units="degrees") == "geographic"
+    assert classify_lon_axis(std_name="longitude") == "geographic"
+    # Positive projected evidence.
+    assert classify_lon_axis(units="m") == "projected"
+    assert classify_lon_axis(units="km") == "projected"
+    assert classify_lon_axis(std_name="projection_x_coordinate") == "projected"
+    assert classify_lon_axis(lon_min=0.0, lon_max=500000.0) == "projected"
+    # No metadata, in-range values -> ambiguous.
+    assert classify_lon_axis(lon_min=0.0, lon_max=10.0) == "unknown"
+    assert classify_lon_axis() == "unknown"
+
+
+@pytest.mark.python
+def test_resolve_wrap_geographic_run():
+    # coordinate_system == 2 (lon-lat): wrapping allowed unless file is projected.
+    assert resolve_wrap(2, "geographic") is True
+    assert resolve_wrap(2, "unknown") is True
+    with pytest.raises(ValueError, match="mismatch"):
+        resolve_wrap(2, "projected")
+
+
+@pytest.mark.python
+def test_resolve_wrap_cartesian_run():
+    # coordinate_system == 1 (Cartesian): never wrap; a positively geographic
+    # file is a hard error, an ambiguous one is not.
+    assert resolve_wrap(1, "projected") is False
+    assert resolve_wrap(1, "unknown") is False
+    with pytest.raises(ValueError, match="mismatch"):
+        resolve_wrap(1, "geographic")
+
+
+@pytest.mark.python
+def test_resolve_wrap_unknown_system_is_legacy():
+    # coordinate_system None -> per-file heuristic, no cross-check / no raise.
+    assert resolve_wrap(None, "geographic") is True
+    assert resolve_wrap(None, "unknown") is True
+    assert resolve_wrap(None, "projected") is False
+
+
+@pytest.mark.python
+def test_is_geographic_lon_consistent_with_classify():
+    # is_geographic_lon is 'not projected' -- the wrap-mechanics view.
+    for units, sname, lo, hi in [
+        (None, None, 0.0, 10.0),          # unknown -> geographic-for-wrap
+        ("degrees_east", None, 0.0, 359.0),
+        ("m", None, 0.0, 10.0),           # projected
+        (None, None, 0.0, 500000.0),      # projected by range
+    ]:
+        expected = classify_lon_axis(units, sname, lo, hi) != "projected"
+        assert is_geographic_lon(lo, hi, units, sname) is expected

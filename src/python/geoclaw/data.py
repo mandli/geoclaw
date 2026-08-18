@@ -202,6 +202,13 @@ class TopographyData(clawpack.clawutil.data.ClawData):
         self.add_attribute('override_order', False)
         self.add_attribute('topofiles', [])
 
+        # Run coordinate system (mirrors geodata.coordinate_system: 1 =
+        # Cartesian, 2 = lon-lat).  Registered but never data_write-n, so it is
+        # NOT emitted to topo.data -- it only gates the Python-side antimeridian-
+        # wrap early check at write time (the Fortran read applies the
+        # authoritative gate).  None => per-file heuristic, no cross-check.
+        self.add_attribute('coordinate_system', None)
+
         # Jump discontinuity
         self.add_attribute('topo_location',-50e3)
         self.add_attribute('topo_left',-4000.0)
@@ -333,7 +340,8 @@ class TopographyData(clawpack.clawutil.data.ClawData):
                     crop_bounds=tuple(topo.crop_extent),
                     buffer=int(topo.buffer),
                 ) as _insp:
-                    entries = _insp.topo_entries()
+                    entries = _insp.topo_entries(
+                        coordinate_system=self.coordinate_system)
                 for _, _, meta in entries:
                     derived = Topography()
                     derived.topo_type = 4
@@ -454,6 +462,17 @@ class TopographyData(clawpack.clawutil.data.ClawData):
                             if _insp.var_name is None:
                                 _insp.var_name = _insp._find_topo_var_name()
                             _file_meta = _insp.inspect(_insp.var_name)
+                            # Gate on the run's coordinate system: this full-file
+                            # path never wraps (lon_wrap_offset=0.0), but a
+                            # geographic-vs-Cartesian mismatch is still a setup
+                            # error worth catching early.
+                            _xc = _insp.ds[_file_meta.x_name]
+                            _nature = _ncutils.classify_lon_axis(
+                                _xc.attrs.get('units'),
+                                _xc.attrs.get('standard_name'),
+                                float(_xc.min()), float(_xc.max()))
+                            _ncutils.resolve_wrap(
+                                self.coordinate_system, _nature)
                             # A recognized non-meter unit yields a scale_factor
                             # Fortran applies on read (missing/unrecognized
                             # units still raise).
