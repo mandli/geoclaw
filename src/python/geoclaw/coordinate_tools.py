@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+import numpy
+
 
 # Length unit strings (lower-cased) on an x axis that mark it as a projected /
 # rectilinear (non-geographic) grid, for which the 0-360 longitude wrap is
@@ -139,3 +141,102 @@ def _compute_lon_entries(
         )
 
     return entries
+
+
+class EmptyCropWindow(ValueError):
+    r"""A crop request overlaps the coordinate range but contains no grid point.
+
+    Distinct from a genuine non-overlap (which :func:`crop_indices` reports by
+    returning ``None``, and whose callers have a documented full-file
+    fall-back): a window narrower than one cell, falling strictly between two
+    grid points, is never what the user meant, so it is raised rather than
+    quietly widened.  Subclasses ``ValueError`` so existing ``except
+    ValueError`` handling is unaffected; callers that can add axis names or
+    grid spacings to the message catch it and re-raise.
+    """
+
+
+def crop_indices(coords, lo, hi, delta, coarsen=1, buffer=0, align=None):
+    r"""Half-open slice bounds ``(lower, upper)`` for a 1-D crop + coarsen.
+
+    ``coords[lower:upper:coarsen]`` is the cropped, coarsened, buffered,
+    align-adjusted lattice covering the inclusive request ``[lo, hi]``.  This is
+    the single index-window implementation shared by the topography and moving-
+    topography (dtopo) crop paths, for both ASCII and NetCDF products.
+
+    :Input:
+     - *coords* (ndarray) - 1-D ascending coordinate array with uniform spacing.
+     - *lo*, *hi* (float) - inclusive requested crop bounds (domain coords).
+     - *delta* (float) - grid spacing of *coords* (``coords[1] - coords[0]``).
+     - *coarsen* (int) - coarsening (subsampling) factor; 1 = none.
+     - *buffer* (int) - integer number of grid points to keep on each side (NOT
+       a coordinate distance).  Scaled by *coarsen* so it counts points on the
+       original, pre-coarsen lattice.
+     - *align* (float or None) - alignment target for coarsening; when given and
+       ``coarsen > 1`` the low index is shifted so ``(coords[lower] - align) /
+       (delta*coarsen)`` is as close to an integer as the lattice allows.
+
+    Returns ``(lower, upper)`` (Python ints, half-open) or ``None`` when
+    ``[lo, hi]`` does not overlap *coords* -- callers preserve their own
+    "does not overlap" handling.
+
+    :Raises:
+     - :class:`EmptyCropWindow` when ``[lo, hi]`` lies inside the coordinate
+       range but between two grid points, so the window is empty.
+    """
+    coords = numpy.asarray(coords)
+    n = len(coords)
+    try:
+        lower = (coords >= lo).nonzero()[0][0]
+        upper = (coords <= hi).nonzero()[0][-1]
+    except IndexError:
+        return None
+    if upper < lower:
+        raise EmptyCropWindow(
+            f"crop bounds [{lo}, {hi}] lie between grid points and contain no "
+            f"data: the grid spacing is {delta}. Widen the crop to at least "
+            f"one cell, or use buffer= to include the surrounding points.")
+
+    delta_new = delta * coarsen
+
+    # Shift the low index for alignment when coarsening (mirrors the original
+    # Topography.crop math exactly: search the first `coarsen` points for the
+    # best-aligned start, then trim the high index to a whole coarsen stride).
+    if (coarsen > 1) and (align is not None):
+        vs = numpy.array([coords[lower + i] for i in range(coarsen)])
+        offsets = (vs - align) / delta_new
+        offsets_frac = offsets - numpy.round(offsets)
+        ioffset = numpy.argmin(abs(offsets_frac))
+        lower = lower + ioffset
+        upper = upper - numpy.remainder(upper - lower, coarsen)
+
+    # Buffer (integer grid-point count), clamped to the array limits.
+    lower = numpy.maximum(0, lower - buffer * coarsen)
+    upper = numpy.minimum(n - 1, upper + buffer * coarsen) + 1
+
+    return int(lower), int(upper)
+
+
+def axis_file_slice(coord_full, descending, lo, hi, step, n):
+    r"""Map an ascending window ``[lo:hi:step]`` to a positive-stride slice.
+
+    Used by every NetCDF input reader: :func:`crop_indices` returns bounds into
+    an *ascending* view of a file axis, but NetCDF/xarray lazy indexing requires
+    a **positive** step into the *file-order* axis.  For an axis stored
+    descending (e.g. latitude N->S), the ascending sample indices
+    ``lo, lo+step, ..., lo+(m-1)*step`` map to file indices ``n-1-(that)``, whose
+    minimum is ``f0``; reading ``slice(f0, f0+m*step, step)`` returns those same
+    ``m`` samples in file (descending) order, to be flipped to ascending in
+    memory afterward.
+
+    Returns ``(file_slice, coord_subset, flip)`` where
+    ``coord_subset == coord_full[file_slice]`` and ``flip`` is True when the
+    subset (and the corresponding data axis) must be reversed to be ascending.
+    """
+    if not descending:
+        sl = slice(lo, hi, step)
+        return sl, coord_full[sl], False
+    m = len(range(lo, hi, step))
+    f0 = n - 1 - (lo + (m - 1) * step)
+    sl = slice(f0, f0 + m * step, step)
+    return sl, coord_full[sl], True
