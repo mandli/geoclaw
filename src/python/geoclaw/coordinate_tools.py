@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+import numpy
+
 
 # Length unit strings (lower-cased) on an x axis that mark it as a projected /
 # rectilinear (non-geographic) grid, for which the 0-360 longitude wrap is
@@ -139,3 +141,95 @@ def _compute_lon_entries(
         )
 
     return entries
+
+
+def crop_indices(coords, lo, hi, delta, coarsen=1, buffer=0, align=None):
+    r"""Half-open slice bounds ``(lower, upper)`` for a 1-D crop + coarsen.
+
+    ``coords[lower:upper:coarsen]`` is the cropped, coarsened, buffered,
+    align-adjusted lattice covering the inclusive request ``[lo, hi]``.  This is
+    the single index-window implementation shared by the topography and moving-
+    topography (dtopo) crop paths, for both ASCII and NetCDF products.
+
+    :Input:
+     - *coords* (ndarray) - 1-D ascending coordinate array with uniform spacing.
+     - *lo*, *hi* (float) - inclusive requested crop bounds (domain coords).
+     - *delta* (float) - grid spacing of *coords* (``coords[1] - coords[0]``).
+     - *coarsen* (int) - coarsening (subsampling) factor; 1 = none.
+     - *buffer* (int) - integer number of grid points to keep on each side (NOT
+       a coordinate distance).  Scaled by *coarsen* so it counts points on the
+       original, pre-coarsen lattice.
+     - *align* (float or None) - alignment target for coarsening; when given and
+       ``coarsen > 1`` the low index is shifted so ``(coords[lower] - align) /
+       (delta*coarsen)`` is as close to an integer as the lattice allows.
+
+    Returns ``(lower, upper)`` (Python ints, half-open) or ``None`` when
+    ``[lo, hi]`` does not overlap *coords* -- callers preserve their own
+    "does not overlap" handling.
+    """
+    coords = numpy.asarray(coords)
+    n = len(coords)
+    try:
+        lower = (coords >= lo).nonzero()[0][0]
+        upper = (coords <= hi).nonzero()[0][-1]
+    except IndexError:
+        return None
+
+    delta_new = delta * coarsen
+
+    # Shift the low index for alignment when coarsening (mirrors the original
+    # Topography.crop math exactly: search the first `coarsen` points for the
+    # best-aligned start, then trim the high index to a whole coarsen stride).
+    if (coarsen > 1) and (align is not None):
+        vs = numpy.array([coords[lower + i] for i in range(coarsen)])
+        offsets = (vs - align) / delta_new
+        offsets_frac = offsets - numpy.round(offsets)
+        ioffset = numpy.argmin(abs(offsets_frac))
+        lower = lower + ioffset
+        upper = upper - numpy.remainder(upper - lower, coarsen)
+
+    # Buffer (integer grid-point count), clamped to the array limits.
+    lower = numpy.maximum(0, lower - buffer * coarsen)
+    upper = numpy.minimum(n - 1, upper + buffer * coarsen) + 1
+
+    return int(lower), int(upper)
+
+
+def netcdf_window_indices(coords, lo, hi, margin, n, stride=1):
+    r"""Half-open index window ``[i0, i1)`` into 1-D monotonic *coords*.
+
+    A read-time *prefilter* (distinct from :func:`crop_indices`): it pushes a
+    requested crop down to a NetCDF hyperslab read so only the needed slab is
+    loaded from disk, keeping a *margin* of extra points on each side so a
+    subsequent exact :func:`crop_indices` still has every point it needs.  It is
+    format-neutral geometry, shared by every NetCDF input reader.
+
+    :Input:
+     - *coords* (ndarray) - 1-D coordinate array, monotonic ascending **or**
+       descending (as stored in the file).
+     - *lo*, *hi* (float) - requested inclusive coordinate bounds.
+     - *margin* (int) - extra points to keep on each side (the caller's buffer
+       plus the coarsen alignment search room).
+     - *n* (int) - length of *coords*.
+     - *stride* (int) - read stride; the low index is snapped **down** to a
+       multiple of *stride* so the strided sub-window shares the same phase as
+       striding the full array, keeping the sampled grid identical.
+
+    Returns ``(0, n)`` (the full range) when the interval does not overlap
+    *coords*, mirroring the crop fall-back of leaving the array uncropped when
+    the requested region misses the data.
+    """
+    # A monotonic array clipped to [lo, hi] yields a contiguous True block for
+    # either sort order, so first/last True index bound the window.
+    mask = (coords >= lo) & (coords <= hi)
+    idx = numpy.nonzero(mask)[0]
+    if idx.size == 0:
+        return 0, n
+    i0 = max(0, int(idx[0]) - margin)
+    i1 = min(n, int(idx[-1]) + margin + 1)
+    # Snap the low index down to a multiple of stride so coords[i0:i1:stride]
+    # is a phase-aligned subset of coords[::stride].
+    i0 -= i0 % stride
+    if i1 <= i0:
+        return 0, n
+    return i0, i1

@@ -35,6 +35,8 @@ import numpy
 import clawpack.geoclaw.util as util
 import clawpack.clawutil.data
 import clawpack.geoclaw.data
+from clawpack.geoclaw import coordinate_tools
+from clawpack.geoclaw import gridded_input
 
 # ==============================================================================
 #  Topography Related Functions
@@ -91,43 +93,10 @@ def determine_topo_type(path, default=None):
     return topo_type
 
 
-def _netcdf_window_indices(coords, lo, hi, margin, n, stride=1):
-    r"""Half-open index window ``[i0, i1)`` into 1-D monotonic *coords*.
-
-    Used by :meth:`Topography.read` to push a ``crop_extent`` down to the
-    NetCDF read so only the needed hyperslab is loaded from disk (rather than
-    materializing a whole global variable and cropping afterward).
-
-    :Input:
-     - *coords* (ndarray) - 1-D coordinate array, monotonic ascending **or**
-       descending (as stored in the file).
-     - *lo*, *hi* (float) - requested inclusive coordinate bounds.
-     - *margin* (int) - extra points to keep on each side so that a subsequent
-       :meth:`Topography.crop` still has every point it needs (its own buffer
-       plus the ``coarsen`` alignment search).
-     - *n* (int) - length of *coords*.
-     - *stride* (int) - read stride; the low index is snapped **down** to a
-       multiple of *stride* so the strided sub-window shares the same phase as
-       striding the full array, keeping the sampled grid identical.
-
-    Returns ``(0, n)`` (the full range) when the interval does not overlap
-    *coords*, mirroring ``crop()``'s fall-back of leaving the array uncropped
-    when the filter region misses the topography.
-    """
-    # A monotonic array clipped to [lo, hi] yields a contiguous True block for
-    # either sort order, so first/last True index bound the window.
-    mask = (coords >= lo) & (coords <= hi)
-    idx = numpy.nonzero(mask)[0]
-    if idx.size == 0:
-        return 0, n
-    i0 = max(0, int(idx[0]) - margin)
-    i1 = min(n, int(idx[-1]) + margin + 1)
-    # Snap the low index down to a multiple of stride so coords[i0:i1:stride]
-    # is a phase-aligned subset of coords[::stride].
-    i0 -= i0 % stride
-    if i1 <= i0:
-        return 0, n
-    return i0, i1
+# The NetCDF read-window prefilter now lives in coordinate_tools (format-neutral
+# geometry, shared by every NetCDF input reader).  Re-exported here under the
+# original private name for backward compatibility.
+_netcdf_window_indices = coordinate_tools.netcdf_window_indices
 
 
 def create_topo_func(loc,verbose=False):
@@ -863,226 +832,19 @@ class Topography(object):
                 self._z = data[:,2]
 
         else:
-            # Data is in one of the GeoClaw supported formats
-            if abs(self.topo_type) == 1:
-                import warnings
-                warnings.warn(
-                    "topo_type=1 is deprecated. Convert to topo_type=2, 3, or 4:\n"
-                    "  topo.read()  # load the type-1 file\n"
-                    "  topo.write('output.tt2', topo_type=2)  # save as type 2\n"
-                    "Note: topo_type=1 assumes regularly spaced data. Genuinely "
-                    "unstructured (scattered) point data must be gridded externally "
-                    "(e.g., scipy.interpolate, GMT) before use with GeoClaw.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                _preprocessing_requested = (
-                    self.crop_extent is not None
-                    or self.coarsen != 1
-                    or self.buffer != 0
-                    or self.align is not None
-                    or self.x_shift != 0.0
-                    or self.y_shift != 0.0
-                    or self.z_shift != 0.0
-                    or self.negate_z
-                )
-                if _preprocessing_requested:
-                    raise NotImplementedError(
-                        "Preprocessing attributes (crop_extent, coarsen, buffer, align, "
-                        "shift) are not supported for topo_type=1. Convert to type 2/3/4 first:\n"
-                        "  topo_raw = Topography(path=self.path, topo_type=1)\n"
-                        "  topo_raw.read()\n"
-                        "  topo_raw.write('converted.tt2', topo_type=2)"
-                    )
-                data = numpy.loadtxt(self.path)
-                N = [0,0]
-                y0 = data[0,1]
-                for (n, y) in enumerate(data[1:,1]):
-                    if y != y0:
-                        N[1] = n + 1
-                        break
-                N[0] = data.shape[0] // N[1]
-
-                self._x = data[:N[1],0]
-                self._y = data[::N[1],1]
-                self._Z = numpy.flipud(data[:,2].reshape(N))
-                dx = self.X[0,1] - self.X[0,0]
-                dy = self.Y[1,0] - self.Y[0,0]
-                self._delta = (dx,dy)
-
-            elif abs(self.topo_type) in [2,3]:
-                # Get header information
-                N = self.read_header()  # note this also sets self._extent
-                                        # self._x, self._y, self._delta,
-                                        # and  self.grid_registration
-
-                if abs(self.topo_type) == 2:
-                    # Data is read in as a single column, reshape it
-                    self._Z = numpy.loadtxt(self.path, skiprows=6).reshape(N[1],N[0])
-                    self._Z = numpy.flipud(self._Z)
-                elif abs(self.topo_type) == 3:
-                    # Data is read in starting at the top right corner
-                    self._Z = numpy.flipud(numpy.loadtxt(self.path, skiprows=6))
-
-            elif abs(self.topo_type) == 4:
-                from clawpack.geoclaw import netcdf_utils as _ncutils
-                from clawpack.geoclaw.units import (
-                    convert as _units_convert,
-                    GEOCLAW_NETCDF_UNITS as _NC_UNITS,
-                )
-
-                # Allow explicit variable name override via nc_params (backward
-                # compat with old 'z_var' key).
-                _var_hint: str | None = nc_params.get('z_var', None)
-                # Opt-in escape hatch for a file with no 'units' attribute;
-                # units are otherwise required, never silently assumed.
-                _assume_units: str | None = nc_params.get('assume_units', None)
-                # Opt-out of the post-conversion magnitude sanity check.
-                _skip_sanity: bool = nc_params.get('skip_sanity_check', False)
-
-                with _ncutils.TopoInspector(
-                    self.path, var_name=_var_hint, assume_units=_assume_units,
-                    skip_sanity_check=_skip_sanity,
-                ) as inspector:
-                    # Auto-detect elevation variable if not provided
-                    if inspector.var_name is None:
-                        inspector.var_name = inspector._find_topo_var_name()
-
-                    # Get CF coordinate metadata (no fill-value data scan here;
-                    # fill values are handled below via NaN replacement)
-                    _meta = inspector.inspect(inspector.var_name)
-                    # Check and record units; warns if conversion is needed.
-                    # In-memory read converts recognized non-meter units to
-                    # meters (the conversion block below applies the factor);
-                    # the Fortran descriptor path applies the same factor via
-                    # the descriptor scale_factor.
-                    _source_units = inspector._check_topo_units()
-
-                    ds = inspector.ds
-                    _x_name = _meta.x_name
-                    _y_name = _meta.y_name
-                    _var_name = inspector.var_name
-
-                    # Record an optional vertical datum from CF/common
-                    # attributes (informational only; no transformation).
-                    self.datum = extract_datum(ds[_var_name].attrs, ds.attrs)
-
-                    # Load the 1-D coordinate arrays in full: these are
-                    # O(nx)+O(ny) (a few MB even for a global grid), unlike the
-                    # O(nx*ny) elevation variable.  Kept in file order for now;
-                    # any N→S flip is applied below after windowing.
-                    _lon_full = numpy.asarray(ds[_x_name].values, dtype=float)
-                    _lat_full = numpy.asarray(ds[_y_name].values, dtype=float)
-
-                    # Load variable, squeezing singleton non-spatial dims
-                    _da = ds[_var_name]
-                    for _dim in list(_da.dims):
-                        if _dim not in (_x_name, _y_name):
-                            if _da.sizes[_dim] == 1:
-                                _da = _da.isel({_dim: 0})
-                            else:
-                                raise ValueError(
-                                    f"NetCDF variable '{_var_name}' has "
-                                    f"non-singleton dimension '{_dim}' "
-                                    f"(size {_da.sizes[_dim]}).  Cannot load "
-                                    f"as static topography."
-                                )
-
-                    # Transpose to (lat, lon) = (y, x) order expected by
-                    # Topography.
-                    _da = _da.transpose(_y_name, _x_name)
-
-                    # Push both `stride` and `crop_extent` down to xarray's lazy
-                    # indexing so the NetCDF backend reads ONLY the requested
-                    # hyperslab.  Otherwise `_da.values` materializes the whole
-                    # variable (a global DEM is many GB, and CF fill decoding
-                    # promotes it to float), which is prohibitively slow and can
-                    # exhaust memory even when the caller asked for a small
-                    # subset.  The crop window is computed on the cheap 1-D
-                    # coordinate arrays and expanded by a margin so the post-read
-                    # crop() below still reproduces its exact bounds/buffer/
-                    # align/coarsen result on the in-memory sub-window.
-                    _nx = _lon_full.size
-                    _ny = _lat_full.size
-                    if self.crop_extent is not None:
-                        _x1, _x2, _y1, _y2 = self.crop_extent
-                        _margin = (int(self.buffer) + 1) * max(int(self.coarsen), 1)
-                        _i0, _i1 = _netcdf_window_indices(
-                            _lon_full, _x1, _x2, _margin, _nx, stride[0]
-                        )
-                        _j0, _j1 = _netcdf_window_indices(
-                            _lat_full, _y1, _y2, _margin, _ny, stride[1]
-                        )
-                    else:
-                        _i0, _i1 = 0, _nx
-                        _j0, _j1 = 0, _ny
-
-                    _da = _da.isel({
-                        _y_name: slice(_j0, _j1, stride[1]),
-                        _x_name: slice(_i0, _i1, stride[0]),
-                    })
-                    _z_vals = numpy.asarray(_da.values, dtype=float)
-                    _lon_vals = _lon_full[_i0:_i1:stride[0]]
-                    _lat_vals = _lat_full[_j0:_j1:stride[1]]
-
-                    # Flip to S→N (y increasing) if file stores N→S
-                    if not _meta.y_increasing:
-                        _lat_vals = _lat_vals[::-1]
-                        _z_vals = _z_vals[::-1, :]
-
-                    # Apply unit conversion if source is not already meters
-                    _contract = _NC_UNITS.get('topo', 'm')
-                    _meters_aliases = frozenset(
-                        {'m', 'meter', 'meters', 'metre', 'metres'}
-                    )
-                    if _source_units and _source_units not in _meters_aliases:
-                        _canonical = _ncutils._normalize_cf_unit(_source_units)
-                        if _canonical is not None:
-                            _factor = _units_convert(1.0, _canonical, _contract)
-                            _z_vals = _z_vals * _factor
-
-                    # Magnitude sanity check on the resolved (meters) field.
-                    if not _skip_sanity:
-                        _ncutils._check_magnitude(
-                            'topo',
-                            float(numpy.nanmin(_z_vals)),
-                            float(numpy.nanmax(_z_vals)),
-                            var_name=_var_name, path=str(self.path),
-                        )
-
-                    # Decoded fill values are already NaN (from xarray
-                    # mask_and_scale).  NaN is the in-memory missing-data
-                    # representation, so they pass through unchanged.
-
-                self._x = _lon_vals
-                self._y = _lat_vals
-                self._Z = _z_vals
-
-            elif abs(self.topo_type) == 5:
-                # GeoTIFF
-                try:
-                    import gdal
-                except ImportError as e:
-                    print("Reading GeoTIFF files requires GDAL.")
-                    raise e
-
-                data = gdal.Open(self.path)
-                z = data.GetRasterBand(1).ReadAsArray()
-                transform = data.GetGeoTransform()
-                x_origin = transform[0]
-                y_origin = transform[3]
-                dx = transform[1]
-                dy = -transform[5]
-
-                self._Z = numpy.flipud(z)
-                self._x = numpy.linspace(x_origin,
-                                   x_origin + (z.shape[0] - 1) * dx, z.shape[0])
-                self._y = numpy.linspace(y_origin - (z.shape[1] - 1) * dy,
-                                   y_origin, z.shape[1])
-
-
-            else:
-                raise IOError("Unrecognized topo_type: %s" % self.topo_type)
+            # Data is in one of the GeoClaw supported formats.  Format-specific
+            # reading is delegated to a registered GriddedReader (gridded_input);
+            # the shared post-read processing below is identical for every
+            # format.  Adding a format = registering a new adapter there.
+            reader = gridded_input.get_reader(self.topo_type)
+            _result = reader.read_window(self, stride=stride, nc_params=nc_params)
+            self._x = _result.x
+            self._y = _result.y
+            self._Z = _result.Z
+            if _result.delta is not None:
+                self._delta = _result.delta
+            if _result.datum is not gridded_input._UNSET:
+                self.datum = _result.datum
 
             if self.topo_type < 0:
                 # positive Z means distance below sea level for these
@@ -2071,39 +1833,20 @@ class Topography(object):
         dx_new = dx*coarsen
         dy_new = dy*coarsen
 
-        # Find indices of topo arrays in crop_extent:
-        try:
-            ilower = (self.x >= crop_extent[0]).nonzero()[0][0]
-            iupper = (self.x <= crop_extent[1]).nonzero()[0][-1]
-            jlower = (self.y >= crop_extent[2]).nonzero()[0][0]
-            jupper = (self.y <= crop_extent[3]).nonzero()[0][-1]
-        except:
+        # Find crop/coarsen/buffer/align index windows.  The per-axis index
+        # math lives in coordinate_tools.crop_indices so the topo and dtopo crop
+        # paths share one implementation (see that function for the algorithm).
+        xwin = coordinate_tools.crop_indices(
+            self.x, xlower, xupper, dx, coarsen, buffer,
+            None if align is None else align[0])
+        ywin = coordinate_tools.crop_indices(
+            self.y, ylower, yupper, dy, coarsen, buffer,
+            None if align is None else align[1])
+        if (xwin is None) or (ywin is None):
             print('*** crop_extent does not overlap topo')
             return None
-
-        # shift indices if needed for alignment:
-        if (coarsen > 1) and (align is not None):
-            xs = numpy.array([self.x[ilower + i] for i in range(coarsen)])
-            offsets = (xs - align[0]) / dx_new
-            offsets_frac = offsets - numpy.round(offsets)
-            ioffset = numpy.argmin(abs(offsets_frac))
-            ilower = ilower + ioffset
-            iupper = iupper - numpy.remainder(iupper-ilower, coarsen)
-            #print(f'+++ shifted ilower by ioffset={ioffset} to {ilower}')
-
-            ys = numpy.array([self.y[jlower + j] for j in range(coarsen)])
-            offsets = (ys - align[1]) / dy_new
-            offsets_frac = offsets - numpy.round(offsets)
-            joffset = numpy.argmin(abs(offsets_frac))
-            jlower = jlower + joffset
-            jupper = jupper - numpy.remainder(jupper-jlower, coarsen)
-            #print(f'+++ shifted jlower by joffset={joffset} to {jlower}')
-
-        # buffer, checking limits of arrays:
-        ilower = numpy.maximum(0, ilower - buffer*coarsen)
-        jlower = numpy.maximum(0, jlower - buffer*coarsen)
-        iupper = numpy.minimum(len(self.x)-1, iupper + buffer*coarsen) + 1
-        jupper = numpy.minimum(len(self.y)-1, jupper + buffer*coarsen) + 1
+        ilower, iupper = xwin
+        jlower, jupper = ywin
 
         # Create new topography object:
         newtopo = Topography()

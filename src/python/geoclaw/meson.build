@@ -11,6 +11,7 @@ python_sources = {
     'fgmax_tools.py',
     'fgout_tools.py',
     'geoplot.py',
+    'gridded_input.py',
     'kmltools.py',
     'marching_front.py',
     'most2geoclaw.py',

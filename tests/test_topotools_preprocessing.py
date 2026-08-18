@@ -1200,15 +1200,17 @@ def test_crop_pushdown_reads_bounded_window(nc_topo_path, monkeypatch):
     pytest.importorskip("xarray")
     path, _, _ = nc_topo_path
 
+    from clawpack.geoclaw import coordinate_tools
+
     calls = []
-    orig = topotools._netcdf_window_indices
+    orig = coordinate_tools.netcdf_window_indices
 
     def _spy(coords, lo, hi, margin, n, stride=1):
         result = orig(coords, lo, hi, margin, n, stride)
         calls.append((result, n))
         return result
 
-    monkeypatch.setattr(topotools, "_netcdf_window_indices", _spy)
+    monkeypatch.setattr(coordinate_tools, "netcdf_window_indices", _spy)
 
     t = Topography()
     t.crop_extent = [3.0, 6.0, 3.0, 6.0]
