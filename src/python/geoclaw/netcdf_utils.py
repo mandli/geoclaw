@@ -49,6 +49,8 @@ import xarray as xr
 from clawpack.geoclaw.units import GEOCLAW_NETCDF_UNITS, convert as units_convert
 from clawpack.geoclaw.coordinate_tools import (
     is_geographic_lon,
+    classify_lon_axis,
+    resolve_wrap,
     _compute_lon_entries,
     _PROJECTED_LENGTH_UNITS,
     _PROJECTED_STANDARD_NAMES,
@@ -1002,7 +1004,8 @@ class TopoInspector(NetCDFInspector):
             lon_wrap_offset=0.0,
         )
 
-    def topo_entries(self, fill_scan: bool = True) -> list[list]:
+    def topo_entries(self, fill_scan: bool = True,
+                     coordinate_system: Optional[int] = None) -> list[list]:
         """
         Return a list of ready-to-use topo entries for topofiles.
 
@@ -1025,6 +1028,12 @@ class TopoInspector(NetCDFInspector):
         only need the descriptor metadata (``TopographyData.write``) pass
         False.  Scoping the scan to each returned entry's own crop is the
         better answer and is tracked for the topo-input refactor.
+
+        *coordinate_system* is the run's authoritative system (GeoClaw
+        ``geodata``: 1 = Cartesian, 2 = lon-lat).  When provided it gates
+        antimeridian wrapping via :func:`coordinate_tools.resolve_wrap` and
+        raises on a genuine geographic/Cartesian mismatch; ``None`` (the
+        default) falls back to the per-file heuristic (no cross-check).
         """
 
         # Interrogate without crop validation: self.crop_bounds is in domain
@@ -1036,27 +1045,37 @@ class TopoInspector(NetCDFInspector):
         finally:
             self.crop_bounds = saved_crop
 
+        # Classify the file's x axis and gate wrapping on the run's coordinate
+        # system (authoritative).  This runs even when no crop is requested so a
+        # geographic-vs-Cartesian mismatch is caught regardless of cropping.
+        lon_coords = self.ds[meta.x_name].values
+        file_lon_min = float(lon_coords.min())
+        file_lon_max = float(lon_coords.max())
+        _xattrs = self.ds[meta.x_name].attrs
+        nature = classify_lon_axis(
+            _xattrs.get('units'), _xattrs.get('standard_name'),
+            file_lon_min, file_lon_max)
+        allow_wrap = resolve_wrap(coordinate_system, nature)
+
         if saved_crop is None:
             return [[4, self.path, dataclasses.replace(meta, lon_wrap_offset=0.0)]]
 
         assert saved_crop is not None  # narrowing hint: already returned above
-        lon_coords = self.ds[meta.x_name].values
-        file_lon_min = float(lon_coords.min())
-        file_lon_max = float(lon_coords.max())
         if len(lon_coords) > 1:
             lon_resolution = float(abs(lon_coords[1] - lon_coords[0]))
         else:
             lon_resolution = 1e-10  # single-point file, no gap tolerance needed
         crop_lon_min, crop_lon_max, crop_lat_min, crop_lat_max = saved_crop
 
-        # The +/-360 wrap candidates only make sense for a geographic
-        # longitude axis.  For a non-geographic x axis (lon_wrap is None,
-        # e.g. projected meters) restrict to the identity offset so the crop
+        # The +/-360 wrap candidates only make sense for a geographic longitude
+        # axis under a geographic run; ``allow_wrap`` was resolved above from the
+        # run's coordinate_system (authoritative) and the file's axis nature.
+        # For a non-wrapping axis, only the identity offset is tried so the crop
         # is taken straight from the file extent.
         entries_spec = _compute_lon_entries(
             file_lon_min, file_lon_max, crop_lon_min, crop_lon_max,
             max_gap=lon_resolution,
-            allow_wrap=meta.lon_wrap is not None,
+            allow_wrap=allow_wrap,
         )
 
         result = []

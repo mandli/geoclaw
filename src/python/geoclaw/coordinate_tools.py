@@ -41,6 +41,49 @@ _PROJECTED_STANDARD_NAMES: frozenset[str] = frozenset({
     'projection_x_coordinate', 'projection_y_coordinate',
 })
 
+# Positive evidence (lower-cased) that an x axis IS geographic longitude: CF
+# degree units or a longitude standard_name.  Used to distinguish a file that is
+# *definitely* geographic from one that merely lacks metadata (the ambiguous
+# default) -- the coordinate-system gate only hard-errors on positive evidence.
+_GEOGRAPHIC_LON_UNITS: frozenset[str] = frozenset({
+    'degrees_east', 'degree_east', 'degrees_e', 'degree_e', 'degreese',
+    'degrees', 'degree', 'degrees_north', 'degree_north',  # generic degree axes
+})
+_GEOGRAPHIC_STANDARD_NAMES: frozenset[str] = frozenset({
+    'longitude', 'grid_longitude',
+})
+
+
+def classify_lon_axis(
+    units: Optional[str] = None,
+    std_name: Optional[str] = None,
+    lon_min: Optional[float] = None,
+    lon_max: Optional[float] = None,
+) -> str:
+    """Classify an x axis as ``'projected'``, ``'geographic'``, or ``'unknown'``.
+
+    Only *positive* evidence promotes an axis out of ``'unknown'``:
+      - ``'projected'`` -- a length unit (``m``/``km``), a projection
+        ``standard_name``, or coordinate values outside the plausible degree
+        range ``[-360, 360]``.
+      - ``'geographic'`` -- a CF degree unit or a longitude ``standard_name``.
+
+    An axis with no such metadata (e.g. an ASCII file, or a small unit-less
+    Cartesian grid) is ``'unknown'``.  This three-way result lets the
+    coordinate-system gate (:func:`resolve_wrap`) hard-error only on a genuine,
+    positively-evidenced conflict and never on an ambiguous default.
+    """
+    u = str(units or '').strip().lower()
+    s = str(std_name or '').strip().lower()
+    if (u in _PROJECTED_LENGTH_UNITS
+            or s in _PROJECTED_STANDARD_NAMES
+            or (lon_min is not None and lon_min < -360.0 - 1e-6)
+            or (lon_max is not None and lon_max > 360.0 + 1e-6)):
+        return 'projected'
+    if u in _GEOGRAPHIC_LON_UNITS or s in _GEOGRAPHIC_STANDARD_NAMES:
+        return 'geographic'
+    return 'unknown'
+
 
 def is_geographic_lon(
     lon_min: float,
@@ -59,15 +102,43 @@ def is_geographic_lon(
     ``units``/``std_name`` are optional (ASCII files carry no such metadata);
     when omitted, only the coordinate-magnitude test applies.
     """
-    u = str(units or '').strip().lower()
-    s = str(std_name or '')
-    projected = (
-        u in _PROJECTED_LENGTH_UNITS
-        or s in _PROJECTED_STANDARD_NAMES
-        or lon_min < -360.0 - 1e-6
-        or lon_max > 360.0 + 1e-6
-    )
-    return not projected
+    return classify_lon_axis(units, std_name, lon_min, lon_max) != 'projected'
+
+
+def resolve_wrap(coordinate_system: Optional[int], nature: str) -> bool:
+    """Decide whether antimeridian wrapping is allowed, gated on the run's
+    ``coordinate_system`` -- the single authority (GeoClaw ``geodata``:
+    ``1`` = Cartesian/meters, ``2`` = lon-lat sphere).
+
+    *nature* is the file x-axis classification from :func:`classify_lon_axis`.
+
+    Returns ``allow_wrap``.  Raises ``ValueError`` on a genuine mismatch (a
+    positively geographic file under a Cartesian run, or a positively projected
+    file under a geographic run) -- symmetric, per the design decision that
+    mixing coordinate systems is always a setup error.
+
+    ``coordinate_system is None`` means the run's system is unknown at this call
+    site (e.g. the Python early-check was not wired a value); wrapping then
+    falls back to the per-file heuristic (geographic unless positively
+    projected), preserving legacy behavior with no cross-check.
+    """
+    if coordinate_system == 1:      # Cartesian / UTM: never wrap.
+        if nature == 'geographic':
+            raise ValueError(
+                "Coordinate-system mismatch: a geographic (lon/lat) input file "
+                "was supplied for a Cartesian run (geodata.coordinate_system == "
+                "1). Longitude wrapping is disabled for Cartesian coordinates; "
+                "use a projected input file or set coordinate_system = 2.")
+        return False
+    if coordinate_system == 2:      # lon-lat sphere: wrapping is meaningful.
+        if nature == 'projected':
+            raise ValueError(
+                "Coordinate-system mismatch: a projected/Cartesian input file "
+                "was supplied for a geographic run (geodata.coordinate_system == "
+                "2). Use a lon/lat input file or set coordinate_system = 1.")
+        return True
+    # Unknown coordinate_system: legacy per-file behavior, no cross-check.
+    return nature != 'projected'
 
 
 def _compute_lon_entries(
