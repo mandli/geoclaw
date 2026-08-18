@@ -47,6 +47,12 @@ import numpy as np
 import xarray as xr
 
 from clawpack.geoclaw.units import GEOCLAW_NETCDF_UNITS, convert as units_convert
+from clawpack.geoclaw.coordinate_tools import (
+    is_geographic_lon,
+    _compute_lon_entries,
+    _PROJECTED_LENGTH_UNITS,
+    _PROJECTED_STANDARD_NAMES,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -88,18 +94,11 @@ _CF_TO_UNITS_PY: dict[str, str] = {
 }
 
 
-# Length unit strings (lower-cased) on an x axis that mark it as a projected /
-# rectilinear (non-geographic) grid, for which the 0-360 longitude wrap is
-# meaningless and must be skipped.  Detection defaults to geographic; only
-# positive evidence (these units, a projection standard_name, or values
-# outside the plausible degree range) disables the wrap.
-_PROJECTED_LENGTH_UNITS: frozenset[str] = frozenset({
-    'm', 'meter', 'meters', 'metre', 'metres',
-    'km', 'kilometer', 'kilometers', 'kilometre', 'kilometres',
-})
-_PROJECTED_STANDARD_NAMES: frozenset[str] = frozenset({
-    'projection_x_coordinate', 'projection_y_coordinate',
-})
+# ``_PROJECTED_LENGTH_UNITS`` / ``_PROJECTED_STANDARD_NAMES`` and the geographic
+# vs projected longitude test (``is_geographic_lon``) now live in
+# ``coordinate_tools`` so that every input path (topo/dtopo/met, ASCII/NetCDF)
+# shares one implementation.  They are imported above and re-exported here for
+# backward compatibility.
 
 
 def _normalize_cf_unit(cf_unit: str) -> Optional[str]:
@@ -566,13 +565,7 @@ class NetCDFInspector:
         std_name = coord.attrs.get('standard_name', '')
         x_min = float(coord.min())
         x_max = float(coord.max())
-        projected = (
-            units in _PROJECTED_LENGTH_UNITS
-            or std_name in _PROJECTED_STANDARD_NAMES
-            or x_min < -360.0 - 1e-6
-            or x_max > 360.0 + 1e-6
-        )
-        if projected:
+        if not is_geographic_lon(x_min, x_max, units, std_name):
             return None
         return 360 if x_max > 180.0 else 180
 
@@ -1850,78 +1843,12 @@ class CFNormalizer:
 
 # ---------------------------------------------------------------------------
 # Longitude entry computation
+#
+# ``_compute_lon_entries`` now lives in ``coordinate_tools`` (imported at the top
+# of this module and re-exported here for backward compatibility) so that the
+# antimeridian-wrap geometry has a single implementation shared by every input
+# product and file format.
 # ---------------------------------------------------------------------------
-
-def _compute_lon_entries(
-    file_lon_min: float,
-    file_lon_max: float,
-    domain_lon_min: float,
-    domain_lon_max: float,
-    max_gap: float = 1e-10,
-    allow_wrap: bool = True,
-) -> list[tuple[float, float, float]]:
-    """
-    Compute (file_crop_min, file_crop_max, lon_offset) tuples needed to cover
-    [domain_lon_min, domain_lon_max] from a file with lons in
-    [file_lon_min, file_lon_max].
-
-    lon_offset is the scalar Fortran adds to file coordinates to produce
-    domain coordinates: x_domain = x_file + lon_offset.
-
-    Returns 1 tuple if a single offset suffices, 2 tuples if the domain
-    straddles the file's cut point.
-
-    max_gap controls how much under-coverage is tolerated.  The default
-    (1e-10) is tight enough to catch genuine gaps.  Pass the file's grid
-    spacing to allow for the half-cell gap at the dateline that near-global
-    files (e.g. GEBCO) have between their last and first longitude columns.
-
-    allow_wrap enables the +/-360 wrap candidate offsets (the default, for a
-    geographic longitude axis).  Pass False for a non-geographic x axis
-    (projected meters, etc.), which never wraps: only the identity offset 0
-    is considered.
-
-    Raises ValueError if the file cannot cover the requested domain even
-    with all candidate offsets, or if the remaining uncovered gap exceeds
-    max_gap.
-    """
-    candidate_offsets = [0.0, 360.0, -360.0] if allow_wrap else [0.0]
-    entries: list[tuple[float, float, float]] = []
-    total_coverage = 0.0
-
-    for offset in candidate_offsets:
-        shifted_min = file_lon_min + offset
-        shifted_max = file_lon_max + offset
-        intersect_min = max(domain_lon_min, shifted_min)
-        intersect_max = min(domain_lon_max, shifted_max)
-        width = intersect_max - intersect_min
-        if width > 1e-10:
-            file_crop_min = intersect_min - offset
-            file_crop_max = intersect_max - offset
-            # Clamp to file extent (guards against floating-point overshoot)
-            file_crop_min = max(file_crop_min, file_lon_min)
-            file_crop_max = min(file_crop_max, file_lon_max)
-            entries.append((file_crop_min, file_crop_max, offset))
-            total_coverage += width
-
-    if not entries:
-        raise ValueError(
-            f"File longitude range [{file_lon_min}, {file_lon_max}] cannot cover "
-            f"domain [{domain_lon_min}, {domain_lon_max}] with candidate offsets "
-            f"{candidate_offsets}."
-        )
-
-    # One-sided check: overcoverage is harmless; under-coverage beyond max_gap
-    # indicates that the file genuinely cannot cover the requested domain.
-    gap = (domain_lon_max - domain_lon_min) - total_coverage
-    if gap > max_gap:
-        raise ValueError(
-            f"File longitudes [{file_lon_min}, {file_lon_max}] cannot "
-            f"cover requested domain [{domain_lon_min}, {domain_lon_max}]. "
-            f"Gap of {gap:.6f} degrees exceeds tolerance {max_gap:.6f}."
-        )
-
-    return entries
 
 
 # ---------------------------------------------------------------------------
