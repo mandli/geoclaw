@@ -443,6 +443,60 @@ def test_topo_entries_near_global_gap(topo_file_factory):
     )
 
 
+def test_topo_entries_buffer_no_wrap(topo_file_factory):
+    """
+    File [-180, 180] x [-90, 90] at 1-degree spacing, crop (-90, 0, -45, 45)
+    with buffer=2: single entry, offset 0, crop_bounds grown by 2*resolution
+    (= 2 degrees) on every side.
+    """
+    path = topo_file_factory(lon_min=-180.0, lon_max=180.0, nlon=361,
+                              lat_min=-90.0, lat_max=90.0, nlat=181)
+    insp = TopoInspector(path, var_name="z",
+                             crop_bounds=(-90.0, 0.0, -45.0, 45.0), buffer=2)
+    entries = insp.topo_entries()
+    insp.close()
+
+    assert len(entries) == 1
+    meta = entries[0][2]
+    assert meta.lon_wrap_offset == pytest.approx(0.0)
+    lon0, lon1, lat0, lat1 = meta.crop_bounds
+    assert lon0 == pytest.approx(-92.0)
+    assert lon1 == pytest.approx(2.0)
+    assert lat0 == pytest.approx(-47.0)
+    assert lat1 == pytest.approx(47.0)
+
+
+def test_topo_entries_buffer_with_wrap(topo_file_factory):
+    """
+    File [-180, 180] x [-90, 90] at 1-degree spacing.  A crop that straddles
+    the dateline (-190, -170) with buffer=2 splits into two entries; the buffer
+    grows the outer edges by 2 degrees and each entry's file-coord crop_bounds
+    stay within the file extent (the ±180 edges are clamped).
+    """
+    path = topo_file_factory(lon_min=-180.0, lon_max=180.0, nlon=361,
+                              lat_min=-90.0, lat_max=90.0, nlat=181)
+    insp = TopoInspector(path, var_name="z",
+                             crop_bounds=(-190.0, -170.0, -45.0, 45.0), buffer=2)
+    entries = insp.topo_entries()
+    insp.close()
+
+    assert len(entries) == 2
+    pairs = {
+        (round(meta.crop_bounds[0], 6), round(meta.crop_bounds[1], 6),
+         meta.lon_wrap_offset)
+        for _, _, meta in entries
+    }
+    # offset 0 covers file [-180, -168] (buffered east edge -170 -> -168);
+    # offset -360 covers file [168, 180] (buffered west edge -190 -> -192,
+    # i.e. file 168), both clamped to the file extent at ±180.
+    assert (-180.0, -168.0, 0.0) in pairs
+    assert (168.0, 180.0, -360.0) in pairs
+    # Latitude buffered symmetrically, within file extent.
+    for _, _, meta in entries:
+        assert meta.crop_bounds[2] == pytest.approx(-47.0)
+        assert meta.crop_bounds[3] == pytest.approx(47.0)
+
+
 def test_topo_entries_genuine_gap_still_errors(topo_file_factory):
     """
     File [-90, 90] genuinely cannot cover domain [-200, -50]: the uncovered

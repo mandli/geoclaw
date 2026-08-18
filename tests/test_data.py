@@ -254,6 +254,52 @@ def test_dtopo_data_netcdf_descriptor(tmp_path):
     assert read_back.dtopofiles[0].dtopo_type == 4
 
 
+def test_topo_data_netcdf_wrap_and_buffer(tmp_path):
+    r"""A plain type-4 Topography whose crop_extent crosses the antimeridian is
+    transparently split into two wrapped descriptor entries, with the buffer
+    baked into the file-coordinate crop_bounds."""
+    pytest.importorskip("netCDF4")
+    import xarray as xr
+    import clawpack.geoclaw.topotools as topotools
+
+    # 1-degree global file so buffer=2 -> a predictable 2-degree margin.
+    lons = np.linspace(-180.0, 180.0, 361)
+    lats = np.linspace(-90.0, 90.0, 181)
+    data = np.full((lats.size, lons.size), -1000.0, dtype=np.float32)
+    ds = xr.Dataset({
+        "z": xr.DataArray(data, dims=["lat", "lon"],
+                          coords={"lon": lons, "lat": lats},
+                          attrs={"units": "m"})
+    })
+    nc_path = tmp_path / "topo.nc"
+    ds.to_netcdf(nc_path)
+
+    topo = topotools.Topography()
+    topo.path = str(nc_path)
+    topo.topo_type = 4
+    topo.crop_extent = [-190.0, -170.0, -45.0, 45.0]   # crosses -180
+    topo.buffer = 2
+
+    topo_data = clawpack.geoclaw.data.TopographyData()
+    topo_data.topofiles = [topo]
+    data_file = tmp_path / "topo.data"
+    topo_data.write(out_file=data_file)
+
+    text = _read_text(data_file)
+    # The straddling crop is split into two type-4 descriptor entries.
+    assert "2                    =: ntopofiles" in text
+    assert "lon_wrap_offset = 0.0" in text
+    assert "lon_wrap_offset = -360.0" in text
+    # Buffer (2 grid points * 1 deg) baked into the file-coord crop_bounds,
+    # clamped to the file extent at +/-180.
+    assert "crop_bounds    = -180.0 -168.0 -47.0 47.0" in text
+    assert "crop_bounds    = 168.0 180.0 -47.0 47.0" in text
+    # The crop+buffer live in the descriptor, so the preprocessing block leaves
+    # crop_extent/buffer at their zero sentinels.
+    assert "0. 0. 0. 0.   # crop_extent [x1 x2 y1 y2]" in text
+    assert "0   # buffer" in text
+
+
 @pytest.mark.python
 def test_dtopo_data_unsupported_preprocessing(tmp_path):
     r"""Unsupported dtopo preprocessing attributes fail loudly at write."""

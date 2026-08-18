@@ -300,6 +300,60 @@ class TopographyData(clawpack.clawutil.data.ClawData):
             )
         return result
 
+    def _expand_wrapped_topo(self, topos, out_file):
+        """Expand cropped NetCDF topo files into wrapped descriptor entries.
+
+        A plain type-4 Topography that carries a ``crop_extent`` (domain
+        coordinates) is routed through ``TopoInspector.topo_entries()``, which
+        converts the crop to file coordinates, applies the requested
+        ``buffer`` as a coordinate margin, and -- when the crop straddles the
+        file's longitude cut (e.g. a domain crossing -180 against a
+        [-180, 180] file) -- splits it into two entries with the appropriate
+        ``lon_wrap_offset``.  Each resulting entry becomes a Topography that
+        already carries ``_netcdf_meta`` (file-coordinate crop_bounds + wrap
+        offset), so the write() loop emits it via the existing descriptor
+        branch and the antimeridian wrap is handled transparently.
+
+        Topos already carrying ``_netcdf_meta`` (produced directly by
+        topo_entries()), non-type-4 topos, and full-file type-4 topos
+        (crop_extent is None) pass through unchanged.
+        """
+        from clawpack.geoclaw.topotools import Topography
+        from clawpack.geoclaw import netcdf_utils as _ncutils
+
+        result = []
+        for topo in topos:
+            if (abs(int(getattr(topo, 'topo_type', 0) or 0)) == 4
+                    and topo.crop_extent is not None
+                    and getattr(topo, '_netcdf_meta', None) is None):
+                fname = os.path.abspath(
+                    os.path.join(os.path.dirname(out_file), topo.path))
+                with _ncutils.TopoInspector(
+                    fname,
+                    crop_bounds=tuple(topo.crop_extent),
+                    buffer=int(topo.buffer),
+                ) as _insp:
+                    entries = _insp.topo_entries()
+                for _, _, meta in entries:
+                    derived = Topography()
+                    derived.topo_type = 4
+                    derived.path = topo.path
+                    derived._netcdf_meta = meta
+                    # Crop + buffer now live in the descriptor crop_bounds
+                    # (which Fortran prioritizes over topo_crop_extent), so
+                    # leave crop_extent/buffer at their defaults.  Preserve the
+                    # remaining preprocessing attributes.
+                    derived.coarsen = topo.coarsen
+                    derived.align = topo.align
+                    derived.x_shift = topo.x_shift
+                    derived.y_shift = topo.y_shift
+                    derived.z_shift = topo.z_shift
+                    derived.negate_z = topo.negate_z
+                    result.append(derived)
+            else:
+                result.append(topo)
+        return result
+
     def _compute_priority_order(self, topos):
         """Return *topos* sorted coarsest-first (finest = highest priority last).
 
@@ -351,6 +405,7 @@ class TopographyData(clawpack.clawutil.data.ClawData):
                         description='(Type topography specification)')
         if self.test_topography == 0:
             topos = self._normalize_topofiles()
+            topos = self._expand_wrapped_topo(topos, out_file)
             topos = self._compute_priority_order(topos)
 
             # Warn if the topo files carry mismatched vertical datums: GeoClaw
