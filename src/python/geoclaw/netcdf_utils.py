@@ -405,6 +405,7 @@ class NetCDFInspector:
         self,
         path: str | Path,
         crop_bounds: Optional[tuple[float, float, float, float]] = None,
+        buffer: int = 0,
     ) -> None:
         # A remote OPeNDAP/THREDDS URL (e.g. "https://.../foo.nc") must reach
         # xarray as a string.  Wrapping it in pathlib.Path collapses "https://"
@@ -418,6 +419,10 @@ class NetCDFInspector:
         else:
             self.path = Path(path)
         self.crop_bounds = crop_bounds
+        # Grid-point buffer count (used by topo_entries/dtopo_entries to bake a
+        # coordinate margin into crop_bounds).  TopoInspector re-sets this from
+        # its own signature; DTopoInspector inherits it here.
+        self.buffer = int(buffer)
         # Activate Dask-lazy chunking if dask is available; fall back to
         # netCDF4 native lazy loading so dask is an optional dependency.
         try:
@@ -1250,6 +1255,84 @@ class DTopoInspector(NetCDFInspector):
                                       GEOCLAW_NETCDF_UNITS['topo']),
         )
 
+    def dtopo_entries(self, coordinate_system: Optional[int] = None) -> list[list]:
+        """Ready-to-use dtopo entries -- the direct analogue of
+        :meth:`TopoInspector.topo_entries`.
+
+        Each entry is ``[4, filepath, DTopoMetadata]``.  A single entry when no
+        wrapping is needed; two entries (same file, different ``lon_wrap_offset``
+        and file-coordinate ``crop_bounds``) when the crop straddles the file's
+        longitude cut (the antimeridian split).  *coordinate_system* gates the
+        wrapping (see :func:`coordinate_tools.resolve_wrap`) and raises on a
+        geographic/Cartesian mismatch; ``None`` keeps the legacy per-file
+        heuristic with no cross-check.
+        """
+        saved_crop = self.crop_bounds
+        self.crop_bounds = None
+        try:
+            meta = self.inspect_dtopo()
+        finally:
+            self.crop_bounds = saved_crop
+
+        # Classify the file's x axis and gate wrapping on the run's coordinate
+        # system (runs even with no crop so a mismatch is always caught).
+        lon_coords = self.ds[meta.x_name].values
+        file_lon_min = float(lon_coords.min())
+        file_lon_max = float(lon_coords.max())
+        _xattrs = self.ds[meta.x_name].attrs
+        nature = classify_lon_axis(
+            _xattrs.get('units'), _xattrs.get('standard_name'),
+            file_lon_min, file_lon_max)
+        allow_wrap = resolve_wrap(coordinate_system, nature)
+
+        if saved_crop is None:
+            return [[4, self.path,
+                     dataclasses.replace(meta, lon_wrap_offset=0.0)]]
+
+        if len(lon_coords) > 1:
+            lon_resolution = float(abs(lon_coords[1] - lon_coords[0]))
+        else:
+            lon_resolution = 1e-10
+        crop_lon_min, crop_lon_max, crop_lat_min, crop_lat_max = saved_crop
+
+        # Bake the requested buffer (a grid-point count) into the crop rectangle
+        # as a coordinate margin, mirroring topo_entries -- all buffer handling
+        # stays on the Python side.
+        max_gap = lon_resolution
+        if self.buffer:
+            lat_coords = self.ds[meta.y_name].values
+            if len(lat_coords) > 1:
+                lat_resolution = float(abs(lat_coords[1] - lat_coords[0]))
+            else:
+                lat_resolution = 0.0
+            dlon = self.buffer * lon_resolution
+            dlat = self.buffer * lat_resolution
+            crop_lon_min -= dlon
+            crop_lon_max += dlon
+            file_lat_min = float(lat_coords.min())
+            file_lat_max = float(lat_coords.max())
+            crop_lat_min = max(crop_lat_min - dlat, file_lat_min)
+            crop_lat_max = min(crop_lat_max + dlat, file_lat_max)
+            max_gap = lon_resolution * (self.buffer + 1)
+
+        entries_spec = _compute_lon_entries(
+            file_lon_min, file_lon_max, crop_lon_min, crop_lon_max,
+            max_gap=max_gap,
+            allow_wrap=allow_wrap,
+        )
+
+        result = []
+        for file_crop_min, file_crop_max, lon_offset in entries_spec:
+            new_meta = dataclasses.replace(
+                meta,
+                crop_bounds=(file_crop_min, file_crop_max,
+                             crop_lat_min, crop_lat_max),
+                lon_wrap_offset=lon_offset,
+            )
+            result.append([4, self.path, new_meta])
+
+        return result
+
 
 class MetInspector(NetCDFInspector):
     """
@@ -1935,6 +2018,12 @@ class DescriptorWriter:
         f.write(f"dim_order      = {','.join(meta.dim_order)}\n")
         f.write(f"t0             = {meta.t0!r}\n")
         f.write(f"dt             = {meta.dt!r}\n")
+        # crop_bounds are in FILE coordinates (converted from domain coords by
+        # dtopo_entries), so Fortran compares them directly against the file's
+        # coordinate arrays before applying lon_wrap_offset.  Mirrors topo.
+        if meta.crop_bounds is not None:
+            x0, x1, y0, y1 = meta.crop_bounds
+            f.write(f"crop_bounds    = {x0} {x1} {y0} {y1}\n")
         f.write("\n")  # blank line terminates block for Fortran parser
 
     @staticmethod
