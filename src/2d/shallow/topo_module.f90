@@ -1774,6 +1774,23 @@ contains
             ! follows the preprocessing lines (written by DTopoData.write()).
             if (abs(dtopotype(i)) == 4) then
                 call read_dtopo_netcdf_descriptor(iunit, i)
+
+                ! Authoritative coordinate-system gate (mirrors the topo gate in
+                ! read_topo_settings): antimeridian longitude wrapping is only
+                ! meaningful on a lon-lat sphere.  A non-zero lon_wrap_offset
+                ! under a Cartesian run (coordinate_system == 1) is a mismatch --
+                ! refuse rather than add +/-360 to projected coordinates.
+                if (coordinate_system == 1 .and. &
+                        dnc_lon_wrap_offset(i) /= 0.0d0) then
+                    print *, "ERROR in read_dtopo_settings: NetCDF dtopo ", &
+                        trim(dtopofname(i))
+                    print *, "  requests longitude wrapping (lon_wrap_offset =", &
+                        dnc_lon_wrap_offset(i), ")"
+                    print *, "  but coordinate_system = 1 (Cartesian).  Longitude"
+                    print *, "  wrapping is only valid for lon-lat ", &
+                        "(coordinate_system = 2)."
+                    stop 1
+                end if
             end if
 
             write(GEO_PARM_UNIT,*) '   fname:',dtopofname(i)
