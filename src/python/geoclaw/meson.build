@@ -4,6 +4,7 @@ pkg_dir = join_paths(package.split('.'))
 python_sources = {
   '': [
     '__init__.py',
+    'coordinate_tools.py',
     'data.py',
     'dtopotools.py',
     'etopotools.py',
