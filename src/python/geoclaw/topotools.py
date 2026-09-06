@@ -156,14 +156,37 @@ def _crop_indices(x, y, crop_extent, coarsen, buffer, align):
     # coordinate_tools.crop_indices so the topo and dtopo crop paths share one
     # implementation; this function keeps only the two-axis vocabulary --
     # crop_extent validation, the clipping warning, and the (i, j) tuple.
-    try:
-        xwin = coordinate_tools.crop_indices(
-            x, crop_extent[0], crop_extent[1], dx, coarsen, buffer,
-            None if align is None else align[0])
-        ywin = coordinate_tools.crop_indices(
-            y, crop_extent[2], crop_extent[3], dy, coarsen, buffer,
-            None if align is None else align[1])
-    except coordinate_tools.EmptyCropWindow as e:
+    #
+    # Both axes are resolved before either failure is reported, because the
+    # original single try/except around all four index lookups let a
+    # *non-overlap* on one axis win over a sub-cell window on the other (the
+    # IndexError escaped first).  Raising per axis instead would turn that
+    # None into a ValueError.
+    _empty = None
+    xwin = ywin = None
+    for _axis, _coords, _lo, _hi, _delta, _align in (
+            ('x', x, crop_extent[0], crop_extent[1], dx,
+             None if align is None else align[0]),
+            ('y', y, crop_extent[2], crop_extent[3], dy,
+             None if align is None else align[1])):
+        try:
+            _win = coordinate_tools.crop_indices(
+                _coords, _lo, _hi, _delta, coarsen, buffer, _align)
+        except coordinate_tools.EmptyCropWindow as e:
+            _empty = _empty or e
+            _win = 'empty'
+        if _axis == 'x':
+            xwin = _win
+        else:
+            ywin = _win
+
+    if (xwin is None) or (ywin is None):
+        # crop_extent does not overlap the data.  Reported by the caller, which
+        # knows whether the fall-back is "leave uncropped" or something else;
+        # in particular no clipping warning here -- nothing was clipped.
+        return None
+
+    if _empty is not None:
         # The window overlaps the extent but falls strictly between two grid
         # points, so it contains no data.  Unlike a genuine non-overlap (which
         # has a documented full-file fallback) nothing pins this case, and
@@ -173,12 +196,7 @@ def _crop_indices(x, y, crop_extent, coarsen, buffer, align):
             f"crop_extent {list(crop_extent)} lies between grid points and "
             f"contains no data: the grid spacing is dx={dx}, dy={dy}. Widen "
             f"the crop to at least one cell, or use buffer= to include the "
-            f"surrounding points.") from e
-    if (xwin is None) or (ywin is None):
-        # crop_extent does not overlap the data.  Reported by the caller, which
-        # knows whether the fall-back is "leave uncropped" or something else;
-        # in particular no clipping warning here -- nothing was clipped.
-        return None
+            f"surrounding points.") from _empty
 
     # Silent clipping is the other half of the antimeridian confusion: a crop
     # written in continuous coordinates ([-211, -99] for a file on [-180, 180])

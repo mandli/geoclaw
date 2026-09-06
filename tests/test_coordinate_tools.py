@@ -12,7 +12,9 @@ from clawpack.geoclaw.coordinate_tools import (
     classify_lon_axis,
     resolve_wrap,
     _compute_lon_entries,
+    axis_file_slice,
     crop_indices,
+    EmptyCropWindow,
 )
 
 
@@ -115,6 +117,52 @@ def test_crop_indices_no_overlap_returns_none():
     coords = numpy.arange(0.0, 10.0, 0.5)
     assert crop_indices(coords, 20.0, 30.0, 0.5) is None   # request above range
     assert crop_indices(coords, -30.0, -20.0, 0.5) is None  # request below range
+
+
+@pytest.mark.python
+def test_crop_indices_subcell_window_raises():
+    """A window inside the range but narrower than a cell is empty, not full.
+
+    Distinguished from a genuine non-overlap (which returns None and has a
+    documented full-file fall-back): quietly widening a crop the user narrowed
+    too far is never right, so it raises.  EmptyCropWindow subclasses
+    ValueError so existing handlers keep working.
+    """
+    coords = numpy.arange(0.0, 10.0, 0.5)
+    assert issubclass(EmptyCropWindow, ValueError)
+    with pytest.raises(EmptyCropWindow, match="between grid points"):
+        crop_indices(coords, 1.1, 1.4, 0.5)   # strictly between 1.0 and 1.5
+
+
+@pytest.mark.python
+def test_axis_file_slice_ascending_is_the_identity_window():
+    coords = numpy.arange(0.0, 10.0, 1.0)   # ascending
+    sl, subset, flip = axis_file_slice(coords, False, 2, 8, 2, coords.size)
+    assert flip is False
+    assert sl == slice(2, 8, 2)
+    numpy.testing.assert_array_equal(subset, coords[2:8:2])
+
+
+@pytest.mark.python
+def test_axis_file_slice_descending_selects_the_same_samples():
+    """A descending file axis must yield the SAME physical samples.
+
+    NetCDF/xarray lazy indexing requires a positive step, so a descending axis
+    (latitude N->S) needs its ascending window remapped rather than reversed
+    with a negative stride.  Pinned by comparing against the ascending view
+    directly: same values, just in file order, with flip=True to say so.
+    """
+    asc = numpy.arange(0.0, 10.0, 1.0)
+    desc = asc[::-1]                         # as stored in the file
+    n = desc.size
+
+    for lo, hi, step in [(0, n, 1), (2, 8, 2), (1, 9, 3), (3, 4, 1)]:
+        sl, subset, flip = axis_file_slice(desc, True, lo, hi, step, n)
+        assert flip is True
+        assert sl.step > 0, "lazy indexing needs a positive stride"
+        numpy.testing.assert_array_equal(subset, desc[sl])
+        # Flipping the file-order subset must reproduce the ascending window.
+        numpy.testing.assert_array_equal(subset[::-1], asc[lo:hi:step])
 
 
 # ---------------------------------------------------------------------------
