@@ -83,7 +83,7 @@ def _resolve_input_units(input_units, where, from_file=None):
     between (1) and (2) is warned about rather than resolved quietly.
 
     *input_units* of None means "not specified": SI is assumed, but a warning
-    says so, because omitting it used to declare metres/pascals silently and a
+    says so, because omitting it used to declare meters/pascals silently and a
     km / dyne-cm file was then off by 10^3-10^7.  An explicit ``{}`` means "my
     data really is SI" and stays silent -- the deliberate escape hatch.
 
@@ -774,7 +774,7 @@ class DTopography(object):
             # Convert deformation to meters if the file declared another
             # (recognized) unit; contract is meters (GEOCLAW_NETCDF_UNITS).
             _src_units = getattr(inspector, "source_units", "m")
-            _meters_aliases = ("m", "meter", "meters", "metre", "metres")
+            _meters_aliases = ("m", "meter", "meters", "meter", "meters")
             if _src_units and _src_units not in _meters_aliases:
                 _canonical = _normalize_cf_unit(_src_units)
                 if _canonical is not None:
@@ -3208,7 +3208,7 @@ class CSVFault(Fault):
                     # to be assigned only when `verbose` was true *and* the
                     # caller had already named a different unit -- so with the
                     # default verbose=False the heading was parsed and then
-                    # thrown away, and a "Depth(km)" file was read as metres.
+                    # thrown away, and a "Depth(km)" file was read as meters.
                     # Precedence against input_units is resolved in
                     # _resolve_input_units, not here.
                     units_from_file[column_name] = units

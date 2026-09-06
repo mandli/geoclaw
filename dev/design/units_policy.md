@@ -77,7 +77,7 @@ Regenerate this table with `GEOCLAW_REGEN=1 pytest tests/test_units_policy.py`.
 Do not edit it by hand -- edit `UNITS_POLICY` instead.
 
 <!-- BEGIN GENERATED TABLE -->
-| Path | Contract | Declared in file | Override | Missing | Non-contract | Unrecognised | Magnitude | Conforms |
+| Path | Contract | Declared in file | Override | Missing | Non-contract | Unrecognized | Magnitude | Conforms |
 |---|---|---|---|---|---|---|---|---|
 | `Topography.read (topo_type=4)` | m | yes | nc_params={'assume_units': str} | raise | convert+warn | raise | yes | yes |
 | `Topography.read (topo_type=1,2,3)` | m | no | none | silent-assume | n/a | n/a | no | **no** -- ASCII carries no units and has no override; elevation in cm or feet is read as meters with no message and no sanity check. |

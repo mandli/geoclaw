@@ -127,7 +127,7 @@ GEOCLAW_NETCDF_UNITS = {
 # single source of truth for both:
 #
 #   * tests/test_units_policy.py, which drives each real reader with a fixture
-#     and asserts the behaviour declared here -- so a row cannot claim
+#     and asserts the behavior declared here -- so a row cannot claim
 #     something the code does not do; and
 #   * the generated table in dev/design/units_policy.md, rendered from these
 #     rows -- so the document cannot drift from the registry.
@@ -139,7 +139,7 @@ GEOCLAW_NETCDF_UNITS = {
 
 @dataclasses.dataclass(frozen=True)
 class UnitsPolicyRow:
-    """One input path's declared units behaviour.
+    """One input path's declared units behavior.
 
     The field values are the vocabulary the conformance test understands; see
     ON_MISSING_VALUES etc. below.
@@ -151,13 +151,13 @@ class UnitsPolicyRow:
     declared_in_file: bool     # can the format carry a units declaration?
     override: str              # the argument that states units explicitly
     on_missing: str            # no declaration present
-    on_convertible: str        # recognised unit that is not the contract unit
-    on_unrecognised: str       # unit string we cannot interpret
+    on_convertible: str        # recognized unit that is not the contract unit
+    on_unrecognized: str       # unit string we cannot interpret
     magnitude_check: bool      # is the post-conversion sanity check applied?
     gap: str = ''              # non-empty => does not yet conform, and why
 
 
-# Vocabulary for the behaviour fields, so a typo in a row is caught rather
+# Vocabulary for the behavior fields, so a typo in a row is caught rather
 # than silently producing an untested case.
 ON_MISSING_VALUES = frozenset({
     'raise',            # refuse to guess (the policy default)
@@ -167,7 +167,7 @@ ON_MISSING_VALUES = frozenset({
     'n/a',              # the format has no notion of declared units
 })
 ON_CONVERTIBLE_VALUES = frozenset({'convert+warn', 'convert', 'n/a'})
-ON_UNRECOGNISED_VALUES = frozenset({'raise', 'n/a'})
+ON_UNRECOGNIZED_VALUES = frozenset({'raise', 'n/a'})
 
 
 UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
@@ -179,7 +179,7 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override="nc_params={'assume_units': str}",
         on_missing='raise',
         on_convertible='convert+warn',
-        on_unrecognised='raise',
+        on_unrecognized='raise',
         magnitude_check=True,
     ),
     UnitsPolicyRow(
@@ -190,10 +190,10 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override='none',
         on_missing='silent-assume',
         on_convertible='n/a',
-        on_unrecognised='n/a',
+        on_unrecognized='n/a',
         magnitude_check=False,
         gap='ASCII carries no units and has no override; elevation in cm or '
-            'feet is read as metres with no message and no sanity check.',
+            'feet is read as meters with no message and no sanity check.',
     ),
     UnitsPolicyRow(
         key='dtopo_netcdf_dz',
@@ -203,7 +203,7 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override='assume_units (str)',
         on_missing='raise',
         on_convertible='convert+warn',
-        on_unrecognised='raise',
+        on_unrecognized='raise',
         magnitude_check=False,
     ),
     UnitsPolicyRow(
@@ -214,7 +214,7 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override='none',
         on_missing='warn+assume',
         on_convertible='convert',
-        on_unrecognised='raise',
+        on_unrecognized='raise',
         magnitude_check=False,
     ),
     UnitsPolicyRow(
@@ -225,7 +225,7 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override='none',
         on_missing='silent-assume',
         on_convertible='n/a',
-        on_unrecognised='n/a',
+        on_unrecognized='n/a',
         magnitude_check=False,
         gap='ASCII dtopo carries no units and has no override.',
     ),
@@ -237,7 +237,7 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override='assume_units (bool), format_units (dict)',
         on_missing='raise',
         on_convertible='convert+warn',
-        on_unrecognised='raise',
+        on_unrecognized='raise',
         magnitude_check=True,
     ),
     UnitsPolicyRow(
@@ -248,7 +248,7 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override='input_units (dict)',
         on_missing='warn+assume',
         on_convertible='convert',
-        on_unrecognised='raise',
+        on_unrecognized='raise',
         magnitude_check=False,
     ),
     UnitsPolicyRow(
@@ -259,7 +259,7 @@ UNITS_POLICY: tuple[UnitsPolicyRow, ...] = (
         override='input_units (dict), overrides the heading',
         on_missing='warn+assume',
         on_convertible='convert',
-        on_unrecognised='raise',
+        on_unrecognized='raise',
         magnitude_check=False,
     ),
 )
@@ -272,7 +272,7 @@ def render_units_policy_table() -> str:
     and a test asserts the two agree, so the prose cannot drift from the code.
     """
     header = ('| Path | Contract | Declared in file | Override | Missing | '
-              'Non-contract | Unrecognised | Magnitude | Conforms |')
+              'Non-contract | Unrecognized | Magnitude | Conforms |')
     sep = '|' + '---|' * 9
     lines = [header, sep]
     for row in UNITS_POLICY:
@@ -280,7 +280,7 @@ def render_units_policy_table() -> str:
         lines.append(
             f"| `{row.reader}` | {row.contract} | "
             f"{'yes' if row.declared_in_file else 'no'} | {row.override} | "
-            f"{row.on_missing} | {row.on_convertible} | {row.on_unrecognised} "
+            f"{row.on_missing} | {row.on_convertible} | {row.on_unrecognized} "
             f"| {'yes' if row.magnitude_check else 'no'} | {conforms} |")
     return "\n".join(lines)
 

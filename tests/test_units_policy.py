@@ -4,7 +4,7 @@
 
 Every row of :data:`clawpack.geoclaw.units.UNITS_POLICY` is driven against the
 **real** reader here, with a purpose-built fixture, so a row cannot claim
-behaviour the code does not have.  That is the whole point: a table of promises
+behavior the code does not have.  That is the whole point: a table of promises
 that nothing executes is how the holes below survived in the first place.
 
 Rows whose ``gap`` is set do not yet meet the policy.  Their tests are marked
@@ -28,7 +28,7 @@ import clawpack.geoclaw.topotools as topotools
 import clawpack.geoclaw.dtopotools as dtopotools
 from clawpack.geoclaw.units import (UNITS_POLICY, render_units_policy_table,
                                     ON_MISSING_VALUES, ON_CONVERTIBLE_VALUES,
-                                    ON_UNRECOGNISED_VALUES)
+                                    ON_UNRECOGNIZED_VALUES)
 
 testdir = Path(__file__).parent
 data_dir = testdir / "data"
@@ -53,13 +53,13 @@ def _row_param(key):
 # ---------------------------------------------------------------------------
 
 def test_registry_vocabulary_is_valid():
-    """A typo in a behaviour field would silently produce an untested case."""
+    """A typo in a behavior field would silently produce an untested case."""
     keys = [row.key for row in UNITS_POLICY]
     assert len(keys) == len(set(keys)), f"duplicate keys: {keys}"
     for row in UNITS_POLICY:
         assert row.on_missing in ON_MISSING_VALUES, row
         assert row.on_convertible in ON_CONVERTIBLE_VALUES, row
-        assert row.on_unrecognised in ON_UNRECOGNISED_VALUES, row
+        assert row.on_unrecognized in ON_UNRECOGNIZED_VALUES, row
 
 
 def test_every_row_has_a_conformance_test():
@@ -288,7 +288,7 @@ def test_missing_units_raises_met(key, tmp_path):
     from clawpack.geoclaw import netcdf_utils as ncutils
     src = inspect_source = ncutils.MetInspector._resolve_units if hasattr(
         ncutils.MetInspector, "_resolve_units") else None
-    # The refusal is a documented, tested behaviour of the resolver; assert the
+    # The refusal is a documented, tested behavior of the resolver; assert the
     # message exists in the code path rather than building a full met file here
     # (the met suite covers the file end-to-end).
     import inspect as _inspect
@@ -303,7 +303,7 @@ def test_missing_units_raises_met(key, tmp_path):
 
 @pytest.mark.netcdf
 def test_convertible_units_convert_and_warn(tmp_path):
-    """km elevation must convert to metres *and* announce it (rule 3)."""
+    """km elevation must convert to meters *and* announce it (rule 3)."""
     pytest.importorskip("xarray")
     path = _write_nc_topo(tmp_path / "km.nc", "km", scale=1e-3)
     with pytest.warns(UserWarning, match="converting to 'm' on read"):
@@ -312,11 +312,11 @@ def test_convertible_units_convert_and_warn(tmp_path):
 
 
 @pytest.mark.netcdf
-def test_unrecognised_units_raise(tmp_path):
+def test_unrecognized_units_raise(tmp_path):
     """Rule 4: an unknown unit string is refused, never guessed at."""
     pytest.importorskip("xarray")
     path = _write_nc_topo(tmp_path / "furlongs.nc", "furlongs")
-    with pytest.raises(ValueError, match="(?i)unrecognised units"):
+    with pytest.raises(ValueError, match="(?i)unrecognized units"):
         _read_nc_topo(path)
 
 
@@ -336,7 +336,7 @@ def test_assume_units_is_the_documented_override(tmp_path):
 
 @pytest.mark.netcdf
 def test_magnitude_check_rejects_implausible_elevation(tmp_path):
-    """A file declaring metres but holding centimetres is caught by rule 5."""
+    """A file declaring meters but holding centimeters is caught by rule 5."""
     pytest.importorskip("xarray")
     path = _write_nc_topo(tmp_path / "cm_as_m.nc", "m", scale=100.0)
     with pytest.raises(ValueError, match="(?i)implausible range"):

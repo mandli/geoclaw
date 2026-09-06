@@ -986,8 +986,8 @@ class Topography(object):
                as if the file had declared it -- so `assume_units="km"` also
                converts.  Units are otherwise required and never silently
                assumed: a file whose elevation variable lacks `units` raises
-               `ValueError`.  A *recognised* non-meter unit (e.g. `km`) is
-               converted to meters on read, with a warning; an unrecognised
+               `ValueError`.  A *recognized* non-meter unit (e.g. `km`) is
+               converted to meters on read, with a warning; an unrecognized
                unit raises.  See `dev/design/units_policy.md`.
 
         The first three might have already been set when instatiating object.
@@ -2563,7 +2563,7 @@ def fetch_remote_topo(name_or_url, crop_extent=None, coarsen=1, buffer=0,
     This is the modern one-call "remote DEM -> Topography" path.  It resolves a
     nickname or URL and reads it through the `topo_type=4` reader
     (`Topography.read`, backed by `netcdf_utils.TopoInspector`), so it inherits
-    that path's unit handling (a recognised non-meter unit such as `km` is
+    that path's unit handling (a recognized non-meter unit such as `km` is
     converted on read with a warning; a file with no `units` attribute needs
     `assume_units` via `nc_params`), datum handling, fill->NaN conversion, CF
     coordinate/variable detection, and lazy hyperslab windowing.
