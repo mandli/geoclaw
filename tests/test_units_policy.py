@@ -155,20 +155,26 @@ def test_missing_units_raises_topo_netcdf(key, tmp_path):
 
 
 @pytest.mark.parametrize("key", [_row_param("topo_ascii")])
-def test_missing_units_is_not_silent_ascii_topo(key, tmp_path):
-    """ASCII cannot declare units, so the policy's answer is an override.
+def test_implausible_ascii_elevation_is_rejected(key, tmp_path):
+    """An ASCII topo file has no field in which to declare units.
 
-    While the gap is open there is no override at all and the data is taken as
-    metres without a word, which is what this asserts against.
+    The header is ncols / nrows / xlower / ylower / cellsize / nodata_value --
+    there is nowhere to put one, and no format extension is proposed here.  So
+    rule 1 cannot apply and the contract unit has to be assumed; what makes
+    that safe is rule 5.  Metres is assumed, and the magnitude check catches
+    the gross errors (a file in cm or mm) that the assumption would otherwise
+    swallow.
+
+    This asserts the *post-fix* outcome deliberately.  A test that instead
+    asserted on the value read would keep failing once the check lands (the
+    read raises rather than returning), so it would stay xfail, `strict` would
+    never trip, and the marker would quietly rot -- the exact failure this
+    mechanism exists to prevent.
     """
     path = _write_ascii_topo(tmp_path / "topo.tt3", scale=100.0)  # cm-like
     t = topotools.Topography()
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")   # any warning at all would be progress
+    with pytest.raises(ValueError, match="(?i)implausible range"):
         t.read(str(path), topo_type=3)
-    # Policy: reading centimetre-magnitude data as metres must not pass quietly.
-    assert float(np.nanmin(t.Z)) > -11000.0, (
-        "elevation of -100000 m was accepted without a magnitude check")
 
 
 @pytest.mark.netcdf
@@ -238,7 +244,6 @@ def test_csv_heading_units_are_applied(key):
 @pytest.mark.parametrize("key", [_row_param("dtopo_ascii")])
 def test_missing_units_is_not_silent_ascii_dtopo(key, tmp_path):
     """ASCII dtopo has no way to declare or override deformation units."""
-    sig = dtopotools.DTopography.read.__doc__ or ""
     import inspect
     params = inspect.signature(dtopotools.DTopography.read).parameters
     assert "assume_units" in params, (

@@ -15,7 +15,7 @@ discover any of it, and neither could reviewers.
 Writing the rules down is only half of it. Prose drifts from code, and a table
 in a document is exactly the kind of thing that quietly stops being true. So the
 table here is *generated* from a registry, and every row is *executed* against
-the real reader. A row cannot claim behaviour the code does not have, and the
+the real reader. A row cannot claim behavior the code does not have, and the
 document cannot disagree with the registry.
 
 ## The rules
@@ -25,9 +25,9 @@ document cannot disagree with the registry.
 2. **Overriding is explicit.** `assume_units` (NetCDF) and `input_units`
    (subfault files) mean "treat the file as if it had declared this". They are
    the only way to supply units GeoClaw cannot read from the file.
-3. **A recognised non-contract unit is converted, and the conversion is
+3. **A recognized non-contract unit is converted, and the conversion is
    announced.** Reading a file in km is fine; doing it silently is not.
-4. **An unrecognised unit raises.** GeoClaw does not guess at unit strings it
+4. **An unrecognized unit raises.** GeoClaw does not guess at unit strings it
    does not know.
 5. **After conversion, magnitude is sanity-checked.** Units can be declared
    *wrongly*, and rules 1-4 cannot catch that. `_check_magnitude` does, within
@@ -38,6 +38,32 @@ document cannot disagree with the registry.
 Rule 5 is the reason the policy is not simply "trust the declaration". Rules 1-4
 protect against *missing* information; rule 5 protects against *wrong*
 information, which is the more common failure in practice.
+
+## ASCII formats cannot declare units at all
+
+This is the question the policy is least obvious about, so it is worth stating
+plainly. A `topo_type=2/3` header is:
+
+```
+ncols / nrows / xlower / ylower / cellsize / nodata_value
+```
+
+There is no units field, and none is proposed here. The same is true of ASCII
+dtopo. So for these formats:
+
+- **Rule 1 cannot apply.** There is no declaration to require, and refusing to
+  read an undeclared file would mean refusing every ASCII file GeoClaw has ever
+  read.
+- **The contract unit is assumed** -- meters for elevation and deformation.
+- **What makes that safe is rule 5, not rule 1.** The magnitude check is the
+  only defense available, and it is doing the whole job on its own here.
+- **Rule 2 is how you say otherwise**: `assume_units` states the file's real
+  unit, and the value is converted.
+
+"Assumed, then checked" is the intended behavior. Note that until the ASCII
+rows below stop being marked as gaps, it is only *assumed* -- the magnitude
+check runs on the NetCDF path only, so an ASCII file in centimeters is read as
+meters with nothing said.
 
 ## Contract units
 
@@ -54,7 +80,7 @@ Do not edit it by hand -- edit `UNITS_POLICY` instead.
 | Path | Contract | Declared in file | Override | Missing | Non-contract | Unrecognised | Magnitude | Conforms |
 |---|---|---|---|---|---|---|---|---|
 | `Topography.read (topo_type=4)` | m | yes | nc_params={'assume_units': str} | raise | convert+warn | raise | yes | yes |
-| `Topography.read (topo_type=1,2,3)` | m | no | none | silent-assume | n/a | n/a | no | **no** -- ASCII carries no units and has no override; elevation in cm or feet is read as metres with no message and no sanity check. |
+| `Topography.read (topo_type=1,2,3)` | m | no | none | silent-assume | n/a | n/a | no | **no** -- ASCII carries no units and has no override; elevation in cm or feet is read as meters with no message and no sanity check. |
 | `DTopoInspector (deformation)` | m | yes | assume_units (str) | raise | convert+warn | raise | no | yes |
 | `DTopoInspector (time axis)` | s | yes | none | warn+assume | convert | raise | no | yes |
 | `DTopography.read (dtopo_type=1,2,3)` | m | no | none | silent-assume | n/a | n/a | no | **no** -- ASCII dtopo carries no units and has no override. |
