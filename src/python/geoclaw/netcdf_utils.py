@@ -1185,6 +1185,21 @@ class DTopoInspector(NetCDFInspector):
             if cf_unit:
                 seconds = arr * _cf_time_units_to_seconds_factor(cf_unit)
             else:
+                # The assumption stays -- a bare numeric dtopo time axis has
+                # always meant seconds and files rely on it -- but it is stated.
+                # Silence here is what makes an "hours" file run 3600x too
+                # fast with nothing to notice, and it is the one place this
+                # module departs from its own rule (see
+                # _cf_time_units_to_seconds_factor: callers must never silently
+                # assume seconds).
+                warnings.warn(
+                    f"Time axis '{time_name}' in '{self.path}' is numeric with "
+                    f"no 'units' attribute; assuming seconds. Add a CF 'units' "
+                    f"attribute (e.g. 'seconds', 'hours') to the time "
+                    f"coordinate -- a file in hours read as seconds runs "
+                    f"3600x too fast.",
+                    stacklevel=3,
+                )
                 seconds = arr
 
         if mt < 2:
