@@ -26,7 +26,6 @@ c      This version of stepgrid, stepgrid_geo.f allows output on
 c      fgout grids specified in fgout_grids.data
 c :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-      use geoclaw_module
       use amr_module
       use fgout_module, only: FGOUT_num_grids, FGOUT_fgrids,
      &                        FGOUT_tcfmax, fgout_interp, fgout_grid,
