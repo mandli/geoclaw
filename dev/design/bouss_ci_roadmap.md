@@ -3,9 +3,10 @@
 *Status: living document. Plan for testing the 2D Boussinesq solvers
 (`src/2d/bouss`, PETSc + MPI) in GitHub Actions.*
 
-**Status (2026-10-16): Phase 0 done; Phases 1–2 not started; Phase 4 waiting on
-a test case from the bouss authors (clawpack/geoclaw#759).** The toolchain probe runs green on GitHub
-Actions (see §1). No bouss *test* exists yet.
+**Status (2026-10-16): Phase 0 done; Phase 1 implemented on clawutil branch
+`test-runner-runexe` (not yet a PR); Phase 2 not started; Phase 4 waiting on a
+test case from the bouss authors (clawpack/geoclaw#759).** The toolchain probe
+runs green on GitHub Actions (see §1). No bouss *test* exists yet.
 
 **Why.** The bouss code compiles a separate source list (`Makefile.bouss`) that
 mixes its own copies of AMR routines with shared `amrclaw/src/2d` and
@@ -47,10 +48,27 @@ Facts established (each observed, not assumed):
 `runclaw.runclaw(...)` without `runexe`, so a test cannot launch under
 `mpiexec`. `runclaw` already accepts `runexe`.
 
-- Add an optional `runexe` (attribute or `run_code` argument, default `None`
-  → current behavior) and pass it through.
-- clawutil PR; must merge before Phase 2 because CI checks out
-  `clawpack/clawpack@master`.
+**Implemented** on clawutil branch `test-runner-runexe` (base `027798c`):
+`run_code(self, runexe: Optional[str]=None)` passes `runexe` to `runclaw`;
+`None` keeps the old behavior. Because `run_example_for_test` already forwards
+`run_kwargs` to `run_code`, a test can use either
+`runner.run_code(runexe="mpiexec -n 2")` or
+`run_example_for_test(..., run_kwargs={"runexe": ...})`.
+
+Checked end to end through `runclaw`'s real `shlex`/`subprocess` path, using a
+stand-in executable that records an environment variable set only by the
+prefix (`/usr/bin/env PROBE=1`): the default run sees no prefix; `runexe` is
+applied and runs in `temp_path`; the `run_kwargs` route forwards it. No
+existing caller passes arguments to `run_code`, and no runner subclass
+overrides it.
+
+**Landing order (verified 2026-10-16).** CI checks out `clawpack/clawpack@master`
+*with submodules*, which pins clawutil to the superrepo's recorded commit
+(currently `027798cd`), not clawutil's master. So Phase 2 needs both:
+
+1. the clawutil PR merged, **then**
+2. a submodule bump of `clawutil` in `clawpack/clawpack` (precedent: "Bump
+   clawutil for testing", `632541bc`).
 
 ## 3. Phase 2 — CI job and marker
 
