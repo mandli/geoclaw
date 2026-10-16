@@ -52,3 +52,7 @@ lost. Several of these docs *were* lost that way (they lived in a gitignored
   merge order for the linear PR stack, superseded branches and what replaced
   them, and the deferred items (antimeridian seam gap, dtopo Fortran parity,
   1D preprocessing scope, build-flag hygiene, units-policy ASCII coverage).
+- `bouss\_ci\_roadmap.md` — plan for testing the 2D Boussinesq (PETSc + MPI)
+  solvers in CI: verified toolchain probe (ubuntu:26.04 + apt PETSc), runner
+  `runexe` support, CI job/marker, and the real test case requested from the
+  bouss authors.
