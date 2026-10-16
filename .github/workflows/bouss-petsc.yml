@@ -50,6 +50,14 @@ jobs:
       matrix:
         build: [debug, opt]
 
+    # Container jobs otherwise run steps with `sh -e` (dash), which has no
+    # `source`.  `shell: bash` runs `bash --noprofile --norc -eo pipefail`, so
+    # avoid pipes into commands that exit early (e.g. `head`): SIGPIPE upstream
+    # fails the step.
+    defaults:
+      run:
+        shell: bash
+
     env:
       DEBIAN_FRONTEND: noninteractive
       # Debian/Ubuntu PETSc layout: no PETSC_ARCH.
@@ -104,11 +112,11 @@ jobs:
 
     - name: Toolchain versions
       run: |
-        gfortran --version | head -1
+        gfortran --version | sed -n 1p
         grep -E 'define PETSC_VERSION_(MAJOR|MINOR|SUBMINOR)' \
           "$PETSC_DIR/include/petscversion.h"
         # gfortran's module-format version must match PETSc's .mod files.
-        zcat "$PETSC_DIR/include/petscksp.mod" | head -c 60; echo
+        gzip -dc "$PETSC_DIR/include/petscksp.mod" | sed -n 1p
 
     - name: Install clawpack python
       run: |

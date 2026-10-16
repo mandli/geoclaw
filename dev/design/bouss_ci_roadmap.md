@@ -40,6 +40,7 @@ Facts established (each observed, not assumed):
 | Where PETSc output goes | `amr2.f90` calls `PetscViewerASCIIStdoutSetFileUnit(timing_unit)`, so `-options_view` and solver-server stats land in **`timing.txt`**, not stdout. |
 | Python deps | `setrun` write needs `xarray` even for a `.tt1` topo (`data.py` → `netcdf_utils`). |
 | Container plumbing | Install `git` before `actions/checkout` (else no submodules); `${{ github.workspace }}` is the host path, so set `CLAW` from `$GITHUB_WORKSPACE`. |
+| Container shell | Container jobs run steps with `sh -e` (dash): no `source` (broke `set_test_env.sh`, mandli/geoclaw run 38931372725). The job sets `defaults.run.shell: bash`, which means `bash -eo pipefail`, so no pipes into early-exiting commands like `head` (SIGPIPE → exit 141). |
 | Makefile noise | `FC=mpif90` is not recognized by `Makefile.common` (warning, falls back to `-J`/`-fopenmp` — correct). |
 
 ## 2. Phase 1 — runner support (clawutil, lands first)
