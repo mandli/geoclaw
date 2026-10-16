@@ -148,7 +148,27 @@ runner.
 - Document the Ubuntu 26.04 apt route (`petsc-dev`, `PETSC_DIR=/usr/lib/petsc`,
   no `PETSC_ARCH`) as a user install option.
 - Update `test_force_dry_index.py`'s note once the bouss copies are covered.
-- Later, optional: macOS (Homebrew `petsc`) nightly cell.
+- ~~Later, optional: macOS (Homebrew `petsc`) nightly cell.~~ Dropped
+  2026-10-16: Homebrew `petsc` (3.26) requires `hdf5-mpi`, which conflicts
+  with the `hdf5` that `netcdf`/`netcdf-fortran` build on, so it can't be
+  installed alongside a normal GeoClaw NetCDF setup. On a Mac, use the CI
+  container for bouss work.
+- `radial_flat/Makefile`: `EXE = $(PWD)/xgeoclaw` → `$(CURDIR)/xgeoclaw`
+  (`PWD` is the caller's, not make's, directory).
+- **HPC (e.g. Derecho) — unverified, notes for users and docs:**
+  - PETSc must be built with the *same compiler and MPI* as GeoClaw (Fortran
+    `.mod` compatibility, as in CI). Use a site module only if it matches the
+    loaded compiler/MPI and is ≥ 3.23; otherwise build PETSc in `$WORK`
+    against the module toolchain. `petscMPIoptions` uses GMRES + GAMG, both
+    built in, so no external packages are needed beyond BLAS/LAPACK.
+  - The example Makefile's flags are gfortran-only (`-ffree-line-length-none`
+    is appended unconditionally; the default `FFLAGS` has `-ffpe-trap`,
+    `-gno-strict-dwarf`). Builds with Intel `ifx` are untested; the
+    Makefile should get compiler-conditional flags.
+  - Launching: rank 0 runs the AMR code (with OpenMP threads) and the other
+    ranks only serve the linear solves (`-mpi_linear_solver_server`), so
+    `BOUSS_MPI_PROCS` and `OMP_NUM_THREADS` must be placed together in the
+    PBS allocation; single-node use is the intended case.
 
 ## 7. Risks
 
