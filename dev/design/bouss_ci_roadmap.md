@@ -3,10 +3,10 @@
 *Status: living document. Plan for testing the 2D Boussinesq solvers
 (`src/2d/bouss`, PETSc + MPI) in GitHub Actions.*
 
-**Status (2026-10-16): Phase 0 done; Phase 1 implemented on clawutil branch
-`test-runner-runexe` (not yet a PR); Phase 2 not started; Phase 4 waiting on a
-test case from the bouss authors (clawpack/geoclaw#759).** The toolchain probe
-runs green on GitHub Actions (see §1). No bouss *test* exists yet.
+**Status (2026-10-16): Phase 0 done; Phase 1 open as clawpack/clawutil#210;
+Phase 2 implemented on `bouss-petsc-ci` and passing in a local replica of the
+CI container (not yet run on Actions); Phase 3 not started; Phase 4 waiting on a
+test case from the bouss authors (clawpack/geoclaw#759).**
 
 **Why.** The bouss code compiles a separate source list (`Makefile.bouss`) that
 mixes its own copies of AMR routines with shared `amrclaw/src/2d` and
@@ -72,21 +72,50 @@ overrides it.
 
 ## 3. Phase 2 — CI job and marker
 
-- **Marker:** add `bouss` (and/or `petsc`) to `pytest.ini`. Tests also
-  `skipif` when `PETSC_DIR` is unset, so a plain local `pytest` doesn't fail.
-- **Exclusion from existing jobs:** the existing regression jobs select
-  `-m "regression and ..."`; add `and not bouss` there so they don't attempt it.
-- **Job:** replace the probe with a job running `-m bouss` in the
-  `ubuntu:26.04` container. Reuse `.github/scripts/set_test_env.sh` for
-  `FFLAGS` (the example Makefile uses `FFLAGS ?=` then `+= -DHAVE_PETSC`, so
-  exported flags compose). Pin `BOUSS_MPI_PROCS=2`, `OMP_NUM_THREADS`.
-- **Triggers:** nightly (in `slow-tests.yml` or its own schedule) **plus**
-  per-PR with a `paths:` filter on `src/2d/bouss/**`, `examples/bouss/**` and
-  the workflow file. The filter cannot cover shared `shallow/` / amrclaw
-  sources that `Makefile.bouss` pulls in; nightly is what catches those.
-- On failure upload `fort.*`, `timing.*`, `*.data`.
+**Implemented** on `bouss-petsc-ci`:
 
-## 4. Phase 3 — smoke regression test
+- **Marker:** `bouss` registered in `pytest.ini`.
+- **Skip logic** (`examples/bouss/radial_flat/test_radial_flat.py`): skips
+  unless the Makefile's variables are set **and** PETSc's Fortran header
+  (`petsc/finclude/petscksp.h`) and the MPI commands actually exist. Env vars
+  alone were not enough: a stale shell profile can set `PETSC_DIR` to a missing
+  install, which made `make new` fail instead of skipping.
+- **No exclusion needed in existing jobs** (changed from the original plan): the
+  regression selectors collect the test, and it skips there because those jobs
+  have no PETSc.
+- **Fail, don't skip, in the bouss job:** the job sets `GEOCLAW_REQUIRE_BOUSS=1`,
+  which turns the skip into a failure, so a broken PETSc setup can't go green.
+- **Job** (`.github/workflows/bouss-petsc.yml`, replaces the probe): runs
+  `-m bouss` in `ubuntu:26.04` with a `[debug, opt]` matrix, using
+  `set_test_env.sh` for `FFLAGS` (the Makefile's `FFLAGS ?=` then
+  `+= -DHAVE_PETSC` composes with them). `BOUSS_MPI_PROCS=2`. Uploads
+  `pytest_tmp` on failure.
+- **Triggers:** push/PR to `master` filtered to `src/2d/bouss/**`,
+  `examples/bouss/**` and the workflow file; nightly at 06:30 UTC (catches the
+  shared `shallow/`/amrclaw sources the filter can't see); `workflow_dispatch`.
+- **Temporary:** a step checks out `mandli/clawutil@test-runner-runexe` over the
+  pinned submodule. Remove it once clawutil#210 merges and the submodule is
+  bumped.
+- **Makefile trap:** `radial_flat/Makefile` sets `EXE = $(PWD)/xgeoclaw`, and
+  `PWD` comes from the caller's environment, not make's working directory. The
+  test pins `EXE` via the runner's `make_vars`.
+
+**What the test checks** (not yet a comparison against saved output):
+
+1. the build and an `mpiexec -n 2` run complete;
+2. `timing.txt` shows the MPI linear solver server ran solves on all ranks;
+3. **volume conservation** on level 1 between t=0 and t=10 (walls at x=0 and
+   y=0, wave ~300 m from the far boundaries, and the Boussinesq correction only
+   changes momenta), to a relative 1e-12;
+4. a guard against a vacuous pass: max depth must fall by more than 1 m.
+
+**Verified** in a local replica of the job (`ubuntu:26.04` arm64, clawutil from
+`test-runner-runexe`), both builds with a fresh `make new` of all 162 sources:
+volume 2500039269.9076505 → 2500039269.907651 (relative 1.9e-16), max depth
+104.27 → 100.62 m, level-1 solves on 2 ranks. Debug and opt results were
+bit-identical. About 6–7 s per build+run.
+
+## 4. Phase 3 — saved-output regression comparison
 
 Interim test from `examples/bouss/radial_flat`, cut down (few steps, one or two
 output frames, a gauge or two), regression data generated once with `--save`.

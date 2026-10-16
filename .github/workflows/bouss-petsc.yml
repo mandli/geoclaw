@@ -1,14 +1,32 @@
-name: Bouss PETSc probe
+name: Test GeoClaw Boussinesq (PETSc)
 
-# Exploratory job: can the 2D Boussinesq (PETSc + MPI) code be built and run
-# on GitHub Actions?  Uses an ubuntu:26.04 container because 26.04 is the first
-# Ubuntu release whose apt PETSc (3.24) meets the >= 3.23 requirement in
+# Tests for the 2D Boussinesq solvers (src/2d/bouss), which need PETSc and MPI.
+# See dev/design/bouss_ci_roadmap.md.
+#
+# Runs in an ubuntu:26.04 container because 26.04 is the first Ubuntu release
+# whose apt PETSc (3.24) meets the >= 3.23 requirement in
 # examples/bouss/README.txt.  The image's own gfortran must be used (not
 # setup-fortran) so GeoClaw is compiled by the same compiler that produced
 # PETSc's Fortran .mod files (`use petscksp`).
+#
+# Per-PR runs are limited to bouss paths.  The bouss build also compiles shared
+# amrclaw and src/2d/shallow sources, which this filter cannot see; the nightly
+# run covers those.
 on:
   push:
-    branches: [ "bouss-petsc-ci" ]
+    branches: [ "master", "bouss-petsc-ci" ]
+    paths:
+      - 'src/2d/bouss/**'
+      - 'examples/bouss/**'
+      - '.github/workflows/bouss-petsc.yml'
+  pull_request:
+    branches: [ "master" ]
+    paths:
+      - 'src/2d/bouss/**'
+      - 'examples/bouss/**'
+      - '.github/workflows/bouss-petsc.yml'
+  schedule:
+    - cron: '30 6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,14 +37,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  bouss-petsc:
-    name: bouss - ubuntu:26.04 - apt PETSc
+  bouss-tests:
+    name: bouss - ubuntu:26.04 - gcc ${{ matrix.build }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
       image: ubuntu:26.04
       # Open MPI's shared-memory transport fails with the 64 MB Docker default.
       options: --shm-size=1g
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [debug, opt]
 
     env:
       DEBIAN_FRONTEND: noninteractive
@@ -35,7 +57,8 @@ jobs:
       CLAW_MPIEXEC: mpiexec
       CLAW_MPIFC: mpif90
       BOUSS_MPI_PROCS: 2
-      OMP_NUM_THREADS: 2
+      # Fail, rather than skip, if the PETSc/MPI setup is not usable.
+      GEOCLAW_REQUIRE_BOUSS: 1
       # Container jobs run as root, which Open MPI refuses by default.
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -57,6 +80,16 @@ jobs:
         ref: master
         submodules: true
 
+    # TEMPORARY: ClawpackTestRunner.run_code(runexe=...) is in
+    # clawpack/clawutil#210.  Remove this step once that merges and the
+    # clawutil submodule in clawpack/clawpack is bumped past it.
+    - name: Checkout clawutil with runexe support
+      uses: actions/checkout@v7.0.1
+      with:
+        repository: mandli/clawutil
+        ref: test-runner-runexe
+        path: clawutil
+
     - name: Checkout GeoClaw branch
       uses: actions/checkout@v7.0.1
       with:
@@ -69,24 +102,13 @@ jobs:
         echo "CLAW=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
         echo "PETSC_OPTIONS=-options_file $GITHUB_WORKSPACE/geoclaw/examples/bouss/petscMPIoptions" >> "$GITHUB_ENV"
 
-    - name: Toolchain diagnostics
+    - name: Toolchain versions
       run: |
-        set -x
-        gfortran --version
-        mpif90 --version
-        mpiexec --version
-        ls -l "$PETSC_DIR" || true
-        readlink -f "$PETSC_DIR" || true
-        find / -name 'PETSc.pc' -not -path '/proc/*' 2>/dev/null || true
+        gfortran --version | head -1
         grep -E 'define PETSC_VERSION_(MAJOR|MINOR|SUBMINOR)' \
-          "$PETSC_DIR/include/petscversion.h" || true
-        # gfortran writes its module-format version in the gzipped .mod
-        # header; it must match the compiler used for GeoClaw.
-        mod=$(find "$(readlink -f "$PETSC_DIR")" -name 'petscksp.mod' | head -1)
-        echo "petscksp.mod: $mod"
-        [ -n "$mod" ] && zcat "$mod" | head -c 80; echo
-        PKG_CONFIG_PATH="$PETSC_DIR/lib/pkgconfig" \
-          pkg-config --modversion --libs-only-L --libs-only-l PETSc || true
+          "$PETSC_DIR/include/petscversion.h"
+        # gfortran's module-format version must match PETSc's .mod files.
+        zcat "$PETSC_DIR/include/petscksp.mod" | head -c 60; echo
 
     - name: Install clawpack python
       run: |
@@ -98,44 +120,20 @@ jobs:
         cd "$CLAW"
         pip install --no-build-isolation --editable .
 
-    - name: make check
+    - name: Run Boussinesq tests
       run: |
-        cd "$CLAW/geoclaw/examples/bouss/radial_flat"
-        make check
-
-    - name: Build xgeoclaw (bouss)
-      run: |
-        cd "$CLAW/geoclaw/examples/bouss/radial_flat"
-        make .exe
-
-    # Smoke run only (no comparison): a few seconds of simulated time to see
-    # that PetscInitialize, the MPI linear solver server, and the KSP solve
-    # all work under mpiexec in the container.
-    - name: Smoke run (short)
-      run: |
-        cd "$CLAW/geoclaw/examples/bouss/radial_flat"
-        python -c "
-        import setrun
-        rd = setrun.setrun()
-        rd.clawdata.tfinal = 10.
-        rd.clawdata.num_output_times = 1
-        rd.write()
-        "
-        # Run in place: setrun's topo file and flagregion file are relative.
-        "$CLAW_MPIEXEC" -n "$BOUSS_MPI_PROCS" ./xgeoclaw
-        ls -l fort.*
-        # amr2.f90 points PETSc's stdout at the timing unit, so the solver
-        # server statistics and -options_view table land in timing.txt.
-        sed -n '/MPI linear solver server statistics/,/End of PETSc Option Table/p' timing.txt
+        cd "$CLAW/geoclaw"
+        source .github/scripts/set_test_env.sh regression gcc "${{ matrix.build }}"
+        echo "FFLAGS: $FFLAGS"
+        echo "OMP_NUM_THREADS: $OMP_NUM_THREADS"
+        pytest --basetemp="$CLAW/geoclaw/pytest_tmp" -vv -s -o addopts="" \
+          -m "bouss"
 
     # Relative path: ${{ github.workspace }} is the host path in container jobs.
-    - name: Upload run output
-      if: always()
+    - name: Upload test results
+      if: failure()
       uses: actions/upload-artifact@v7
       with:
-        name: bouss_petsc_probe
-        path: |
-          geoclaw/examples/bouss/radial_flat/fort.*
-          geoclaw/examples/bouss/radial_flat/*.data
-          geoclaw/examples/bouss/radial_flat/timing.*
+        name: test_results_bouss_${{ matrix.build }}
+        path: geoclaw/pytest_tmp
         if-no-files-found: ignore
