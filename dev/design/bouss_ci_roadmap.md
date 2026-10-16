@@ -4,8 +4,8 @@
 (`src/2d/bouss`, PETSc + MPI) in GitHub Actions.*
 
 **Status (2026-10-16): Phase 0 done; Phase 1 open as clawpack/clawutil#210;
-Phase 2 implemented on `bouss-petsc-ci` and passing in a local replica of the
-CI container (not yet run on Actions); Phase 3 not started; Phase 4 waiting on a
+Phase 2 implemented on `bouss-petsc-ci` and green on Actions (run 38949264162,
+commit `b0f69c68`); Phase 3 not started; Phase 4 waiting on a
 test case from the bouss authors (clawpack/geoclaw#759).**
 
 **Why.** The bouss code compiles a separate source list (`Makefile.bouss`) that
@@ -115,6 +115,12 @@ overrides it.
 volume 2500039269.9076505 → 2500039269.907651 (relative 1.9e-16), max depth
 104.27 → 100.62 m, level-1 solves on 2 ranks. Debug and opt results were
 bit-identical. About 6–7 s per build+run.
+
+**Verified on Actions** against commit `b0f69c68`, mandli/geoclaw run
+38949264162: debug and opt jobs both green (about 2.5 min each), test
+`PASSED` (not skipped) with the same volume and depth figures as the replica.
+The first Actions attempt (run 38931372725) failed on the container default
+shell; see the "Container shell" row in §1.
 
 ## 4. Phase 3 — saved-output regression comparison
 
