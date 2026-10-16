@@ -4,7 +4,7 @@
 (`src/2d/bouss`, PETSc + MPI) in GitHub Actions.*
 
 **Status (2026-10-16): Phase 0 done; Phases 1–2 not started; Phase 4 waiting on
-a test case from the bouss authors.** The toolchain probe runs green on GitHub
+a test case from the bouss authors (clawpack/geoclaw#759).** The toolchain probe runs green on GitHub
 Actions (see §1). No bouss *test* exists yet.
 
 **Why.** The bouss code compiles a separate source list (`Makefile.bouss`) that
@@ -80,7 +80,7 @@ output frames, a gauge or two), regression data generated once with `--save`.
 
 ## 5. Phase 4 — a real test case (bouss authors)
 
-Requested from Randy LeVeque and Marsha Berger (draft request in `.plans/`).
+Requested from Randy LeVeque and Marsha Berger in clawpack/geoclaw#759 (opened 2026-10-16).
 What we want it to exercise, in priority order:
 
 1. Something with a known answer: 2D `radial_flat` vs. the `1d_radial`
